@@ -23,7 +23,7 @@ describe("ERC20Handler", () => {
     [OWNER] = await ethers.getSigners();
 
     const ERC20MB = await ethers.getContractFactory("ERC20MintableBurnable");
-    token = await ERC20MB.deploy("Mock", "MK", OWNER.address);
+    token = await ERC20MB.deploy("Mock", "MK", 18, OWNER.address);
 
     const ERC20HandlerMock = await ethers.getContractFactory("ERC20HandlerMock");
     handler = await ERC20HandlerMock.deploy();
