@@ -1,3 +1,4 @@
+import "@nomicfoundation/hardhat-verify";
 import "@nomicfoundation/hardhat-ethers";
 import "@nomicfoundation/hardhat-chai-matchers";
 
@@ -41,6 +42,16 @@ const config: HardhatUserConfig = {
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
+    bridgelessTest: {
+      url: `https://eth-rpc.node1.testnet.bridgeless.com`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
+    bridgelessMainnet: {
+      url: `https://eth-rpc.node0.mainnet.bridgeless.com`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
   },
   solidity: {
     version: "0.8.9",
@@ -55,12 +66,33 @@ const config: HardhatUserConfig = {
     apiKey: {
       mainnet: `${process.env.ETHERSCAN_KEY}`,
       sepolia: `${process.env.ETHERSCAN_KEY}`,
-      bsc: `${process.env.BSCSCAN_KEY}`,
-      bscTestnet: `${process.env.BSCSCAN_KEY}`,
+      bridgelessTest: "empty",
+      bridgelessMainnet: "empty",
     },
+    customChains: [
+      {
+        network: "bridgelessTest",
+        chainId: 2607,
+        urls: {
+          apiURL: "https://explorer.testnet.bridgeless.com/api",
+          browserURL: "https://explorer.testnet.bridgeless.com",
+        },
+      },
+      {
+        network: "bridgelessMainnet",
+        chainId: 13441,
+        urls: {
+          apiURL: "https://explorer.mainnet.bridgeless.com/api",
+          browserURL: "https://explorer.mainnet.bridgeless.com",
+        },
+      },
+    ],
   },
   migrate: {
-    pathToMigrations: "./deploy/",
+    paths: {
+      pathToMigrations: "./deploy/",
+      namespace: "mainnet",
+    },
   },
   mocha: {
     timeout: 1000000,

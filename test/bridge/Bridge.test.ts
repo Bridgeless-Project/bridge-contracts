@@ -39,7 +39,7 @@ describe("Bridge", () => {
     const ERC721MB = await ethers.getContractFactory("ERC721MintableBurnable");
     const ERC1155MB = await ethers.getContractFactory("ERC1155MintableBurnable");
 
-    erc20 = await ERC20MB.deploy("Mock", "MK", OWNER.address);
+    erc20 = await ERC20MB.deploy("Mock", "MK", 18, OWNER.address);
     await erc20.mintTo(OWNER.address, baseBalance);
     await erc20.approve(await bridge.getAddress(), baseBalance);
 
