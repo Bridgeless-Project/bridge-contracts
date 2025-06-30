@@ -11,6 +11,14 @@ export async function getConfig(): Promise<DeployConfig> {
     return validateConfig((await import("./sepolia")).deployConfig);
   }
 
+  if (hre.network.name == "bridgelessMainnet") {
+    return validateConfig((await import("./bridgelessMainnet")).deployConfig);
+  }
+
+  if (hre.network.name == "eth_mainnet") {
+    return validateConfig((await import("./eth_mainnet")).deployConfig);
+  }
+
   throw new Error(`Config for network ${hre.network.name} is not specified`);
 }
 
