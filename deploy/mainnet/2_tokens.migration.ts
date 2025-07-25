@@ -7,7 +7,7 @@ import { getConfig } from "../config/config";
 export = async (deployer: Deployer) => {
   const config = await getConfig();
 
-  const bridgeAddr = await (await deployer.deployed(Bridge__factory, "Bridge")).getAddress();
+  const bridgeAddr = await (await deployer.deployed(Bridge__factory, "Bridge proxy")).getAddress();
 
   const tokensInfo: [string, string][] = [];
 

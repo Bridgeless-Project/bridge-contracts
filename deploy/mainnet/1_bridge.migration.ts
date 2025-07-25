@@ -7,8 +7,19 @@ import { getConfig } from "../config/config";
 export = async (deployer: Deployer) => {
   const config = await getConfig();
 
-  const bridge = await deployer.deployERC1967Proxy(Bridge__factory, { name: "Bridge" });
+  const bridgeInitData = Bridge__factory.createInterface().encodeFunctionData("__Bridge_init(address[],uint256)", [
+    config.bridgeSigners,
+    config.signersThreshold,
+  ]);
 
-  await bridge.__Bridge_init(config.bridgeSigners, config.signersThreshold);
+  const bridge = await deployer.deployProxy(
+    Bridge__factory,
+    "ERC1967Proxy",
+    (implementationAddress: string): any[] => {
+      return [implementationAddress, bridgeInitData];
+    },
+    { name: "Bridge" },
+  );
+
   await bridge.transferOwnership(config.bridgeOwner);
 };
