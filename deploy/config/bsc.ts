@@ -6,34 +6,24 @@ export const deployConfig: DeployConfig = {
   signersThreshold: 1n,
   wrappedERC20Tokens: [
     {
-      name: "ETH",
-      symbol: "ETH",
-      decimals: 18n,
-    },
-    {
-      name: "BTC",
-      symbol: "BTC",
+      name: "BTCX",
+      symbol: "BTCX",
       decimals: 8n,
     },
     {
-      name: "ZANO",
-      symbol: "ZANO",
+      name: "ZANOX",
+      symbol: "ZANOX",
       decimals: 12n,
     },
     {
-      name: "BNB",
-      symbol: "BNB",
+      name: "BRIDGE",
+      symbol: "BRIDGE",
       decimals: 18n,
     },
     {
-      name: "DAI",
-      symbol: "DAI",
+      name: "CLONE",
+      symbol: "CLONE",
       decimals: 18n,
-    },
-    {
-      name: "USDT",
-      symbol: "USDT",
-      decimals: 6n,
     },
   ],
 };

@@ -42,6 +42,11 @@ const config: HardhatUserConfig = {
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
+    bsc: {
+      url: "https://bsc-dataseed.binance.org/",
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
     bridgelessTest: {
       url: `https://eth-rpc.node1.testnet.bridgeless.com`,
       accounts: privateKey(),
@@ -63,12 +68,7 @@ const config: HardhatUserConfig = {
     },
   },
   etherscan: {
-    apiKey: {
-      mainnet: `${process.env.ETHERSCAN_KEY}`,
-      sepolia: `${process.env.ETHERSCAN_KEY}`,
-      bridgelessTest: "empty",
-      bridgelessMainnet: "empty",
-    },
+    apiKey: `${process.env.ETHERSCAN_KEY}`,
     customChains: [
       {
         network: "bridgelessTest",
