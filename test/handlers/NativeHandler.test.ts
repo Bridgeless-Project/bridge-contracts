@@ -13,6 +13,7 @@ describe("NativeHandler", () => {
   const reverter = new Reverter();
 
   const baseAmount = wei("10");
+  const referralId = "123";
 
   let OWNER: SignerWithAddress;
 
@@ -31,7 +32,7 @@ describe("NativeHandler", () => {
 
   describe("depositNative", () => {
     it("should deposit native", async () => {
-      await handler.depositNative("receiver", "kovan", {
+      await handler.depositNative("receiver", "kovan", referralId, {
         value: baseAmount,
       });
 
@@ -45,8 +46,18 @@ describe("NativeHandler", () => {
       expect(depositEvent.args.network).to.be.equal("kovan");
     });
 
+    it("should emit event correctly", async () => {
+      await expect(
+        handler.depositNative("receiver", "kovan", referralId, {
+          value: baseAmount,
+        }),
+      )
+        .to.emit(handler, "DepositedNative")
+        .withArgs(baseAmount, "receiver", "kovan", referralId);
+    });
+
     it("should revert when try deposit 0 tokens", async () => {
-      await expect(handler.depositNative("receiver", "kovan", { value: 0 })).to.be.revertedWith(
+      await expect(handler.depositNative("receiver", "kovan", referralId, { value: 0 })).to.be.revertedWith(
         "NativeHandler: zero value",
       );
     });
@@ -92,7 +103,7 @@ describe("NativeHandler", () => {
 
   describe("withdrawNative", () => {
     it("should withdraw native", async () => {
-      await handler.depositNative("receiver", "kovan", { value: baseAmount });
+      await handler.depositNative("receiver", "kovan", referralId, { value: baseAmount });
       await handler.withdrawNative(baseAmount, OWNER);
 
       expect(await ethers.provider.getBalance(await handler.getAddress())).to.equal(0);

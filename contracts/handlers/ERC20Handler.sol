@@ -14,7 +14,8 @@ abstract contract ERC20Handler is IERC20Handler {
         uint256 amount_,
         string calldata receiver_,
         string calldata network_,
-        bool isWrapped_
+        bool isWrapped_,
+        uint16 referralId_
     ) external override {
         require(token_ != address(0), "ERC20Handler: zero token");
         require(amount_ > 0, "ERC20Handler: amount is zero");
@@ -27,7 +28,7 @@ abstract contract ERC20Handler is IERC20Handler {
             erc20_.safeTransferFrom(msg.sender, address(this), amount_);
         }
 
-        emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_);
+        emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
     }
 
     function _withdrawERC20(

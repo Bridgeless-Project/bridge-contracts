@@ -13,6 +13,7 @@ describe("ERC1155Handler", () => {
   const baseAmount = "10";
   const baseId = "5000";
   const tokenURI = "https://some.link";
+  const referralId = "123";
 
   let OWNER: SignerWithAddress;
 
@@ -41,7 +42,15 @@ describe("ERC1155Handler", () => {
   describe("ERC1155 no base uri", () => {
     describe("depositERC1155", () => {
       it("should deposit token, isWrapped = true", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
 
         expect(await token.balanceOf(OWNER, baseId)).to.equal("0");
 
@@ -56,16 +65,32 @@ describe("ERC1155Handler", () => {
         expect(depositEvent.args.isWrapped).to.be.true;
       });
 
+      it("should emit event correctly", async () => {
+        await expect(
+          handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true, referralId),
+        )
+          .to.emit(handler, "DepositedERC1155")
+          .withArgs(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true, referralId);
+      });
+
       it("should not burn tokens if they are not approved", async () => {
         await token.setApprovalForAll(await handler.getAddress(), false);
 
         await expect(
-          handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true),
+          handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true, referralId),
         ).to.be.rejectedWith("ERC1155MintableBurnable: not approved");
       });
 
       it("should deposit token, isWrapped = false", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", false);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        );
 
         expect(await token.balanceOf(OWNER, baseId)).to.equal("0");
         expect(await token.balanceOf(await handler.getAddress(), baseId)).to.equal(baseAmount);
@@ -79,13 +104,13 @@ describe("ERC1155Handler", () => {
 
       it("should revert when token address is 0", async () => {
         await expect(
-          handler.depositERC1155(ethers.ZeroAddress, baseId, baseAmount, "receiver", "kovan", false),
+          handler.depositERC1155(ethers.ZeroAddress, baseId, baseAmount, "receiver", "kovan", false, referralId),
         ).to.be.rejectedWith("ERC1155Handler: zero token");
       });
 
       it("should revert when try deposit 0 tokens", async () => {
         await expect(
-          handler.depositERC1155(await token.getAddress(), baseId, "0", "receiver", "kovan", false),
+          handler.depositERC1155(await token.getAddress(), baseId, "0", "receiver", "kovan", false, referralId),
         ).to.be.rejectedWith("ERC1155Handler: amount is zero");
       });
     });
@@ -167,7 +192,15 @@ describe("ERC1155Handler", () => {
 
     describe("withdrawERC1155", () => {
       it("should withdraw 100 tokens, wrapped = true", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
         await handler.withdrawERC1155(await token.getAddress(), baseId, baseAmount, OWNER, tokenURI, true);
 
         expect(await token.balanceOf(OWNER, baseId)).to.equal(baseAmount);
@@ -176,7 +209,15 @@ describe("ERC1155Handler", () => {
       });
 
       it("should withdraw 52 tokens, wrapped = false", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", false);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        );
         await handler.withdrawERC1155(await token.getAddress(), baseId, baseAmount, OWNER, tokenURI, false);
 
         expect(await token.balanceOf(OWNER, baseId)).to.equal(baseAmount);
@@ -216,14 +257,30 @@ describe("ERC1155Handler", () => {
 
     describe("withdraw", () => {
       it("should should check correct metadata (1)", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
         await handler.withdrawERC1155(await token.getAddress(), baseId, baseAmount, OWNER, "123", true);
 
         expect(await token.uri(baseId)).to.be.equal(tokenURI + "123");
       });
 
       it("should should check correct metadata (2)", async () => {
-        await handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true);
+        await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
         await handler.withdrawERC1155(await token.getAddress(), baseId, baseAmount, OWNER, "", true);
 
         expect(await token.uri(baseId)).to.be.equal(tokenURI);

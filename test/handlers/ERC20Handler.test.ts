@@ -13,6 +13,7 @@ describe("ERC20Handler", () => {
   const reverter = new Reverter();
 
   const baseBalance = wei("1000000");
+  const referralId = "123";
 
   let OWNER: SignerWithAddress;
 
@@ -42,7 +43,7 @@ describe("ERC20Handler", () => {
     it("should deposit 100 tokens, isWrapped = true", async () => {
       const expectedAmount = wei("100");
 
-      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true);
+      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
 
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
       expect(await token.balanceOf(await handler.getAddress())).to.equal(0);
@@ -57,20 +58,30 @@ describe("ERC20Handler", () => {
       expect(depositEvent.args.isWrapped).to.be.true;
     });
 
+    it("should emit event correctly", async () => {
+      const expectedAmount = wei("100");
+
+      await expect(
+        handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId),
+      )
+        .to.emit(handler, "DepositedERC20")
+        .withArgs(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
+    });
+
     it("should not burn tokens if they are not approved", async () => {
       let expectedAmount = wei("100");
 
       await token.approve(await handler.getAddress(), 0);
 
       await expect(
-        handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true),
+        handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId),
       ).to.be.rejectedWith("ERC20: insufficient allowance");
     });
 
     it("should deposit 52 tokens, isWrapped = false", async () => {
       let expectedAmount = wei("52");
 
-      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", false);
+      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", false, referralId);
 
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
       expect(await token.balanceOf(await handler.getAddress())).to.equal(expectedAmount);
@@ -81,14 +92,14 @@ describe("ERC20Handler", () => {
 
     it("should revert when try deposit 0 tokens", async () => {
       await expect(
-        handler.depositERC20(await token.getAddress(), wei("0"), "receiver", "kovan", false),
+        handler.depositERC20(await token.getAddress(), wei("0"), "receiver", "kovan", false, referralId),
       ).to.be.rejectedWith("ERC20Handler: amount is zero");
     });
 
     it("should revert when token address is 0", async () => {
-      await expect(handler.depositERC20(ethers.ZeroAddress, wei("1"), "receiver", "kovan", false)).to.be.rejectedWith(
-        "ERC20Handler: zero token",
-      );
+      await expect(
+        handler.depositERC20(ethers.ZeroAddress, wei("1"), "receiver", "kovan", false, referralId),
+      ).to.be.rejectedWith("ERC20Handler: zero token");
     });
   });
 
@@ -164,7 +175,7 @@ describe("ERC20Handler", () => {
     it("should withdraw 100 tokens, is wrapped = true", async () => {
       let expectedAmount = wei("100");
 
-      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true);
+      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
       await handler.withdrawERC20(await token.getAddress(), expectedAmount, OWNER, true);
 
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance);
@@ -174,7 +185,7 @@ describe("ERC20Handler", () => {
     it("should withdraw 52 tokens, is wrapped = false", async () => {
       let expectedAmount = wei("52");
 
-      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", false);
+      await handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", false, referralId);
       await handler.withdrawERC20(await token.getAddress(), expectedAmount, OWNER, false);
 
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance);

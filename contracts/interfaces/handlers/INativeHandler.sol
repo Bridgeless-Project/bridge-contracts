@@ -5,14 +5,19 @@ interface INativeHandler {
     /**
      * @notice event emits from depositNative function
      */
-    event DepositedNative(uint256 amount, string receiver, string network);
+    event DepositedNative(uint256 amount, string receiver, string network, uint16 referralId);
 
     /**
      * @notice function for depositing native currency, emits event DepositedNative
      * @param receiver_ the receiver address in destination network, information field for event
      * @param network_ the network name of destination network, information field for event
+     * @param referralId_ the referral id, information field for event
      */
-    function depositNative(string calldata receiver_, string calldata network_) external payable;
+    function depositNative(
+        string calldata receiver_,
+        string calldata network_,
+        uint16 referralId_
+    ) external payable;
 
     /**
      * @notice function for getting sign hash

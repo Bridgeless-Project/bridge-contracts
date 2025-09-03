@@ -16,6 +16,7 @@ describe("Bridge", () => {
   const tokenURI = "https://some.link";
   const txHash = "0xc4f46c912cc2a1f30891552ac72871ab0f0e977886852bdd5dccd221a595647d";
   const txNonce = "1794147";
+  const referralId = "123";
 
   const hash = ethers.keccak256(ethers.solidityPacked(["bytes32", "uint256"], [txHash, txNonce]));
 
@@ -98,7 +99,7 @@ describe("Bridge", () => {
       );
       const signature = await getSignature(OWNER, signHash);
 
-      await bridge.depositERC20(await erc20.getAddress(), expectedAmount, "receiver", "kovan", true);
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
       await bridge.withdrawERC20(await erc20.getAddress(), expectedAmount, OWNER, txHash, txNonce, expectedIsWrapped, [
         signature,
       ]);
@@ -126,7 +127,7 @@ describe("Bridge", () => {
       );
       const signature = await getSignature(OWNER, signHash);
 
-      await bridge.depositERC721(await erc721.getAddress(), baseId, "receiver", "kovan", expectedIsWrapped);
+      await bridge.depositERC721(await erc721.getAddress(), baseId, "receiver", "kovan", expectedIsWrapped, referralId);
       await bridge.withdrawERC721(
         await erc721.getAddress(),
         baseId,
@@ -167,6 +168,7 @@ describe("Bridge", () => {
         "receiver",
         "kovan",
         expectedIsWrapped,
+        referralId,
       );
       await bridge.withdrawERC1155(
         await erc1155.getAddress(),
@@ -196,7 +198,7 @@ describe("Bridge", () => {
       );
       const signature = await getSignature(OWNER, signHash);
 
-      await bridge.depositNative("receiver", "kovan", { value: baseBalance });
+      await bridge.depositNative("receiver", "kovan", referralId, { value: baseBalance });
       await bridge.withdrawNative(baseBalance, OWNER, txHash, txNonce, [signature]);
 
       expect(await ethers.provider.getBalance(await bridge.getAddress())).to.equal(0);

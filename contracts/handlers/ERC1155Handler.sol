@@ -13,7 +13,8 @@ abstract contract ERC1155Handler is IERC1155Handler, ERC1155Holder {
         uint256 amount_,
         string calldata receiver_,
         string calldata network_,
-        bool isWrapped_
+        bool isWrapped_,
+        uint16 referralId_
     ) external override {
         require(token_ != address(0), "ERC1155Handler: zero token");
         require(amount_ > 0, "ERC1155Handler: amount is zero");
@@ -26,7 +27,15 @@ abstract contract ERC1155Handler is IERC1155Handler, ERC1155Holder {
             erc1155_.safeTransferFrom(msg.sender, address(this), tokenId_, amount_, "");
         }
 
-        emit DepositedERC1155(token_, tokenId_, amount_, receiver_, network_, isWrapped_);
+        emit DepositedERC1155(
+            token_,
+            tokenId_,
+            amount_,
+            receiver_,
+            network_,
+            isWrapped_,
+            referralId_
+        );
     }
 
     function _withdrawERC1155(

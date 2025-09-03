@@ -12,6 +12,7 @@ describe("ERC721Handler", () => {
 
   const baseId = "5000";
   const tokenURI = "https://some.link";
+  const referralId = "123";
 
   let OWNER: SignerWithAddress;
   let SECOND: SignerWithAddress;
@@ -41,7 +42,7 @@ describe("ERC721Handler", () => {
   describe("ERC721 no base uri", () => {
     describe("depositERC721", () => {
       it("should deposit token, isWrapped = true", async () => {
-        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true);
+        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId);
 
         const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC721, -1))[0];
 
@@ -55,30 +56,38 @@ describe("ERC721Handler", () => {
         await expect(token.ownerOf(baseId)).to.be.rejectedWith("ERC721: owner query for nonexistent token");
       });
 
+      it("should emit event correctly", async () => {
+        await expect(handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId))
+          .to.emit(handler, "DepositedERC721")
+          .withArgs(await token.getAddress(), baseId, "receiver", "kovan", true, referralId);
+      });
+
       it("should deposit token, isWrapped = true (2)", async () => {
         await token.approve(ethers.ZeroAddress, baseId);
         await token.setApprovalForAll(await handler.getAddress(), true);
 
-        await expect(handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true)).to.be
-          .eventually.fulfilled;
+        await expect(handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId)).to
+          .be.eventually.fulfilled;
       });
 
       it("should not burn token if it is not approved", async () => {
         await token.approve(ethers.ZeroAddress, baseId);
 
         await expect(
-          handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true),
+          handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId),
         ).to.be.rejectedWith("ERC721MintableBurnable: not approved");
       });
 
       it("should not burn token if it is approved but not owned", async () => {
         await expect(
-          handler.connect(SECOND).depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true),
+          handler
+            .connect(SECOND)
+            .depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId),
         ).to.be.rejectedWith("ERC721MintableBurnable: not approved");
       });
 
       it("should deposit token, isWrapped = false", async () => {
-        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", false);
+        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", false, referralId);
 
         const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC721, -1))[0];
 
@@ -88,9 +97,9 @@ describe("ERC721Handler", () => {
       });
 
       it("should revert when token address is 0", async () => {
-        await expect(handler.depositERC721(ethers.ZeroAddress, baseId, "receiver", "kovan", false)).to.be.rejectedWith(
-          "ERC721Handler: zero token",
-        );
+        await expect(
+          handler.depositERC721(ethers.ZeroAddress, baseId, "receiver", "kovan", false, referralId),
+        ).to.be.rejectedWith("ERC721Handler: zero token");
       });
     });
 
@@ -167,7 +176,7 @@ describe("ERC721Handler", () => {
 
     describe("withdrawERC721", async () => {
       it("should withdraw token, wrapped = true", async () => {
-        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true);
+        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId);
         await handler.withdrawERC721(await token.getAddress(), baseId, OWNER, tokenURI, true);
 
         expect(await token.ownerOf(baseId)).to.be.equal(OWNER.address);
@@ -175,7 +184,7 @@ describe("ERC721Handler", () => {
       });
 
       it("should withdraw token, wrapped = false", async () => {
-        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", false);
+        await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", false, referralId);
         await handler.withdrawERC721(await token.getAddress(), baseId, OWNER, tokenURI, false);
 
         expect(await token.ownerOf(baseId)).to.be.equal(OWNER.address);
@@ -210,14 +219,28 @@ describe("ERC721Handler", () => {
 
     describe("withdraw", () => {
       it("should should check correct metadata (1)", async () => {
-        await handler.depositERC721(await tokenWithMetadata.getAddress(), baseId, "receiver", "kovan", true);
+        await handler.depositERC721(
+          await tokenWithMetadata.getAddress(),
+          baseId,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
         await handler.withdrawERC721(await tokenWithMetadata.getAddress(), baseId, OWNER, "123", true);
 
         expect(await tokenWithMetadata.tokenURI(baseId)).to.be.equal(tokenURI + "123");
       });
 
       it("should should check correct metadata (2)", async () => {
-        await handler.depositERC721(await tokenWithMetadata.getAddress(), baseId, "receiver", "kovan", true);
+        await handler.depositERC721(
+          await tokenWithMetadata.getAddress(),
+          baseId,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
         await handler.withdrawERC721(await tokenWithMetadata.getAddress(), baseId, OWNER, "", true);
 
         expect(await tokenWithMetadata.tokenURI(baseId)).to.be.equal(tokenURI + baseId);

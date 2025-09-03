@@ -6,11 +6,12 @@ import "../interfaces/handlers/INativeHandler.sol";
 abstract contract NativeHandler is INativeHandler {
     function depositNative(
         string calldata receiver_,
-        string calldata network_
+        string calldata network_,
+        uint16 referralId_
     ) external payable override {
         require(msg.value > 0, "NativeHandler: zero value");
 
-        emit DepositedNative(msg.value, receiver_, network_);
+        emit DepositedNative(msg.value, receiver_, network_, referralId_);
     }
 
     receive() external payable {}
