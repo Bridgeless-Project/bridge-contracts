@@ -12,7 +12,8 @@ abstract contract ERC721Handler is IERC721Handler, ERC721Holder {
         uint256 tokenId_,
         string calldata receiver_,
         string calldata network_,
-        bool isWrapped_
+        bool isWrapped_,
+        uint16 referralId_
     ) external override {
         require(token_ != address(0), "ERC721Handler: zero token");
 
@@ -24,7 +25,7 @@ abstract contract ERC721Handler is IERC721Handler, ERC721Holder {
             erc721_.safeTransferFrom(msg.sender, address(this), tokenId_);
         }
 
-        emit DepositedERC721(token_, tokenId_, receiver_, network_, isWrapped_);
+        emit DepositedERC721(token_, tokenId_, receiver_, network_, isWrapped_, referralId_);
     }
 
     function _withdrawERC721(

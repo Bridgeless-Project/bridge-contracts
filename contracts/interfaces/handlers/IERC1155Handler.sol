@@ -11,7 +11,8 @@ interface IERC1155Handler {
         uint256 amount,
         string receiver,
         string network,
-        bool isWrapped
+        bool isWrapped,
+        uint16 referralId
     );
 
     /**
@@ -22,6 +23,7 @@ interface IERC1155Handler {
      * @param receiver_ the receiver address in destination network, information field for event
      * @param network_ the network name of destination network, information field for event
      * @param isWrapped_ the boolean flag, if true - tokens will burned, false - tokens will transferred
+     * @param referralId_ the referral id, information field for event
      */
     function depositERC1155(
         address token_,
@@ -29,7 +31,8 @@ interface IERC1155Handler {
         uint256 amount_,
         string calldata receiver_,
         string calldata network_,
-        bool isWrapped_
+        bool isWrapped_,
+        uint16 referralId_
     ) external;
 
     /**
