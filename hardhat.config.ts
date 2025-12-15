@@ -5,6 +5,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 import "@typechain/hardhat";
 
 import "@solarity/hardhat-migrate";
+import "@solarity/hardhat-gobind";
 
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
@@ -39,6 +40,11 @@ const config: HardhatUserConfig = {
     },
     eth_mainnet: {
       url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
+    base: {
+      url: `https://base-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
