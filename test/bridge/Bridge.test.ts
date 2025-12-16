@@ -28,6 +28,14 @@ describe("Bridge", () => {
   let erc721: ERC721MintableBurnable;
   let erc1155: ERC1155MintableBurnable;
 
+  function hashNode(node1: string, node2: string): string {
+    if (BigInt(node1) <= BigInt(node2)) {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node1, node2]);
+    } else {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node2, node1]);
+    }
+  }
+
   before("setup", async () => {
     [OWNER, SECOND] = await ethers.getSigners();
 
@@ -108,6 +116,94 @@ describe("Bridge", () => {
       expect(await erc20.balanceOf(await bridge.getAddress())).to.equal(0);
 
       expect(await bridge.usedHashes(hash)).to.be.true;
+    });
+
+    it("should withdrawERC20 using merkelized function", async () => {
+      const expectedAmount = wei("100");
+      const expectedIsWrapped = true;
+      const startNonce = 0n;
+
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount * 2n, "receiver", "kovan", true, referralId);
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount * 3n, "receiver", "kovan", true, referralId);
+
+      const signHash1 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+      const signHash2 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+      const signHash3 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+
+      const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+      const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+      const signature = await getSignature(OWNER, level2Hashes[0]);
+
+      let merkleProof = [signHash2, level1Hashes[1]];
+
+      let tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, OWNER, expectedAmount);
+
+      merkleProof = [signHash1, level1Hashes[1]];
+
+      tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, SECOND, expectedAmount * 2n);
+
+      merkleProof = [signHash3, level1Hashes[0]];
+
+      tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, OWNER, expectedAmount * 3n);
     });
   });
 

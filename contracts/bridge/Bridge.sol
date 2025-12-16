@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import "../interfaces/bridge/IBridge.sol";
 
@@ -53,6 +54,34 @@ contract Bridge is
 
         _checkAndUpdateHashes(txHash_, txNonce_);
         _checkSignatures(signHash_, signatures_);
+
+        _withdrawERC20(token_, amount_, receiver_, isWrapped_);
+    }
+
+    function withdrawERC20Merkelized(
+        address token_,
+        uint256 amount_,
+        address receiver_,
+        bytes32 txHash_,
+        uint256 txNonce_,
+        bool isWrapped_,
+        bytes32[] calldata merkleProof_,
+        bytes[] calldata signatures_
+    ) external override {
+        bytes32 signHash_ = getERC20SignHash(
+            token_,
+            amount_,
+            receiver_,
+            txHash_,
+            txNonce_,
+            block.chainid,
+            isWrapped_
+        );
+
+        bytes32 merkleRoot_ = MerkleProof.processProof(merkleProof_, signHash_);
+
+        _checkAndUpdateHashes(txHash_, txNonce_);
+        _checkSignatures(merkleRoot_, signatures_);
 
         _withdrawERC20(token_, amount_, receiver_, isWrapped_);
     }
