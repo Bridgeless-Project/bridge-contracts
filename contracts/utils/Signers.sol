@@ -70,33 +70,22 @@ abstract contract Signers is OwnableUpgradeable {
     }
 
     function updateSigner(
-        address signer_,
         address signerToUpdate_,
         uint256 deadline_,
         bool isAdding_,
-        bytes calldata signature_
+        bytes[] calldata signatures_
     ) external {
         require(deadline_ >= block.timestamp, "Signers: update signer signature expired");
 
-        bytes32 signHash_ = getUpdateSignersSignHash(
-            signer_,
-            signerToUpdate_,
-            deadline_,
-            isAdding_
-        );
-        address recoveredSigner_ = signHash_.toEthSignedMessageHash().recover(signature_);
+        bytes32 signHash_ = getUpdateSignersSignHash(signerToUpdate_, deadline_, isAdding_);
 
-        require(
-            recoveredSigner_ == signer_ && _signers.contains(recoveredSigner_),
-            "Signers: invalid signer"
-        );
+        _checkSignatures(signHash_, signatures_);
 
         if (isAdding_) {
             _checkZeroSigner(signerToUpdate_);
 
             require(_signers.add(signerToUpdate_), "Signers: signer already exists");
         } else {
-            require(signer_ == signerToUpdate_, "Signers: cannot remove other signers");
             require(_signers.remove(signerToUpdate_), "Signers: signer does not exist");
         }
     }
@@ -106,12 +95,11 @@ abstract contract Signers is OwnableUpgradeable {
     }
 
     function getUpdateSignersSignHash(
-        address signer_,
         address signerToUpdate_,
         uint256 deadline_,
         bool isAdding_
     ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(signer_, signerToUpdate_, deadline_, isAdding_));
+        return keccak256(abi.encodePacked(signerToUpdate_, deadline_, isAdding_));
     }
 
     function _checkZeroSigner(address signer_) internal pure {

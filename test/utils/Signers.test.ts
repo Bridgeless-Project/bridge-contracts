@@ -106,94 +106,100 @@ describe("Signers", () => {
     beforeEach("setup", async () => {
       initialSigners = [OWNER.address, SECOND.address, THIRD.address];
       await signers.addSigners(initialSigners);
+      await signers.setSignaturesThreshold(2n);
 
       currentTime = BigInt(await time.latest());
     });
 
     it("should correctly add signer", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, FOURTH.address, deadline, true);
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, true);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
-      await signers.updateSigner(SECOND, FOURTH, deadline, true, signature);
+      await signers.updateSigner(FOURTH, deadline, true, signatures);
 
       expect(await signers.getSigners()).to.be.deep.eq([...initialSigners, FOURTH.address]);
     });
 
     it("should correctly remove signer", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, SECOND.address, deadline, false);
+      const signHash = await signers.getUpdateSignersSignHash(THIRD.address, deadline, false);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
-      await signers.updateSigner(SECOND, SECOND, deadline, false, signature);
+      await signers.updateSigner(THIRD, deadline, false, signatures);
 
-      expect(await signers.getSigners()).to.be.deep.eq([OWNER.address, THIRD.address]);
+      expect(await signers.getSigners()).to.be.deep.eq([OWNER.address, SECOND.address]);
     });
 
     it("should get exception if pass expired signature", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, FOURTH.address, deadline, true);
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, true);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
       await time.setNextBlockTimestamp(deadline + 100n);
 
-      await expect(signers.updateSigner(SECOND, FOURTH, deadline, true, signature)).to.be.rejectedWith(
+      await expect(signers.updateSigner(FOURTH, deadline, true, signatures)).to.be.rejectedWith(
         "Signers: update signer signature expired",
       );
     });
 
     it("should get exception if pass invalid signature", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, FOURTH.address, deadline, true);
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, true);
 
-      let signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(FOURTH, signHash)];
 
-      await expect(signers.updateSigner(FOURTH, FOURTH, deadline, true, signature)).to.be.rejectedWith(
+      await expect(signers.updateSigner(FOURTH, deadline, true, signatures)).to.be.rejectedWith(
         "Signers: invalid signer",
       );
+    });
 
-      signature = await getSignature(FOURTH, signHash);
+    it("should get exception if the threshold is not met", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, true);
 
-      await expect(signers.updateSigner(SECOND, FOURTH, deadline, true, signature)).to.be.rejectedWith(
-        "Signers: invalid signer",
+      const signatures = [await getSignature(SECOND, signHash)];
+
+      await expect(signers.updateSigner(FOURTH, deadline, true, signatures)).to.be.rejectedWith(
+        "Signers: threshold is not met",
       );
     });
 
     it("should get exception if try to add zero signer", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, ethers.ZeroAddress, deadline, true);
+      const signHash = await signers.getUpdateSignersSignHash(ethers.ZeroAddress, deadline, true);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
-      await expect(signers.updateSigner(SECOND, ethers.ZeroAddress, deadline, true, signature)).to.be.rejectedWith(
+      await expect(signers.updateSigner(ethers.ZeroAddress, deadline, true, signatures)).to.be.rejectedWith(
         "Signers: zero signer",
       );
     });
 
     it("should get exception if the signer already exists", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, FOURTH.address, deadline, true);
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, true);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
-      await signers.updateSigner(SECOND, FOURTH, deadline, true, signature);
+      await signers.updateSigner(FOURTH, deadline, true, signatures);
 
-      await expect(signers.updateSigner(SECOND, FOURTH, deadline, true, signature)).to.be.rejectedWith(
+      await expect(signers.updateSigner(FOURTH, deadline, true, signatures)).to.be.rejectedWith(
         "Signers: signer already exists",
       );
     });
 
-    it("should get exception if try to remove other signer", async () => {
+    it("should get exception if try to remove not a signer", async () => {
       const deadline = currentTime + 600n;
-      const signHash = await signers.getUpdateSignersSignHash(SECOND.address, OWNER.address, deadline, false);
+      const signHash = await signers.getUpdateSignersSignHash(FOURTH.address, deadline, false);
 
-      const signature = await getSignature(SECOND, signHash);
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
 
-      await expect(signers.updateSigner(SECOND, OWNER, deadline, false, signature)).to.be.rejectedWith(
-        "Signers: cannot remove other signers",
+      await expect(signers.updateSigner(FOURTH, deadline, false, signatures)).to.be.rejectedWith(
+        "Signers: signer does not exist",
       );
     });
   });

@@ -30,7 +30,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
      * @param receiver_ the address of withdraw receiver
      * @param txHash_ the hash of deposit transaction
      * @param txNonce_ the nonce of deposit transaction
-     * @param isWrapped_ the boolean flag, if true - tokens will minted, false - tokens will transferred
+     * @param isWrapped_ the boolean flag, if true - tokens will be minted, false - tokens will be transferred
      * @param signatures_ the array of signatures. Formed by signing a sign hash by each signer.
      */
     function withdrawERC20(
@@ -50,7 +50,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
      * @param receiver_ the address of withdraw receiver
      * @param txHash_ the hash of deposit transaction
      * @param txNonce_ the nonce of deposit transaction
-     * @param isWrapped_ the boolean flag, if true - tokens will minted, false - tokens will transferred
+     * @param isWrapped_ the boolean flag, if true - tokens will be minted, false - tokens will be transferred
      * @param merkleProof_ the array of merkle proof nodes
      * @param signatures_ the array of signatures. Formed by signing a sign hash by each signer.
      */
@@ -73,7 +73,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
      * @param txHash_ the hash of deposit transaction
      * @param txNonce_ the nonce of deposit transaction
      * @param tokenURI_ the string URI to token metadata
-     * @param isWrapped_ the boolean flag, if true - tokens will minted, false - tokens will transferred
+     * @param isWrapped_ the boolean flag, if true - tokens will be minted, false - tokens will be transferred
      * @param signatures_ the array of signatures. Formed by signing a sign hash by each signer.
      */
     function withdrawERC721(
@@ -96,7 +96,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
      * @param txHash_ the hash of deposit transaction
      * @param txNonce_ the nonce of deposit transaction
      * @param tokenURI_ the string URI to token metadata
-     * @param isWrapped_ the boolean flag, if true - tokens will minted, false - tokens will transferred
+     * @param isWrapped_ the boolean flag, if true - tokens will be minted, false - tokens will be transferred
      * @param signatures_ the array of signatures. Formed by signing a sign hash by each signer.
      */
     function withdrawERC1155(
