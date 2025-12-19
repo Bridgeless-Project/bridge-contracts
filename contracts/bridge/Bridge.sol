@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "../interfaces/bridge/IBridge.sol";
 
@@ -24,6 +25,8 @@ contract Bridge is
     ERC1155Handler,
     NativeHandler
 {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     function __Bridge_init(
         address[] calldata signers_,
         uint256 signaturesThreshold_
@@ -32,6 +35,34 @@ contract Bridge is
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function updateSigner(
+        address signerToUpdate_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_,
+        bytes[] calldata signatures_
+    ) external {
+        require(deadline_ >= block.timestamp, "Signers: update signer signature expired");
+
+        bytes32 signHash_ = getUpdateSignersSignHash(
+            signerToUpdate_,
+            deadline_,
+            txNonce_,
+            isAdding_
+        );
+
+        _checkAndUpdateHashes(signHash_, txNonce_);
+        _checkSignatures(signHash_, signatures_);
+
+        if (isAdding_) {
+            _checkZeroSigner(signerToUpdate_);
+
+            require(_signers.add(signerToUpdate_), "Signers: signer already exists");
+        } else {
+            require(_signers.remove(signerToUpdate_), "Signers: signer does not exist");
+        }
+    }
 
     function withdrawERC20(
         address token_,
@@ -165,5 +196,14 @@ contract Bridge is
 
     function addHash(bytes32 txHash_, uint256 txNonce_) external onlyOwner {
         _checkAndUpdateHashes(txHash_, txNonce_);
+    }
+
+    function getUpdateSignersSignHash(
+        address signerToUpdate_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(signerToUpdate_, deadline_, txNonce_, isAdding_));
     }
 }

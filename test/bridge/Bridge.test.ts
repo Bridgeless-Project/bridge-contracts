@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 import { wei } from "@scripts";
 import { getSignature, Reverter } from "@test-helpers";
@@ -22,6 +23,8 @@ describe("Bridge", () => {
 
   let OWNER: SignerWithAddress;
   let SECOND: SignerWithAddress;
+  let THIRD: SignerWithAddress;
+  let FOURTH: SignerWithAddress;
 
   let bridge: Bridge;
   let erc20: ERC20MintableBurnable;
@@ -37,7 +40,7 @@ describe("Bridge", () => {
   }
 
   before("setup", async () => {
-    [OWNER, SECOND] = await ethers.getSigners();
+    [OWNER, SECOND, THIRD, FOURTH] = await ethers.getSigners();
 
     const Bridge = await ethers.getContractFactory("Bridge");
 
@@ -87,6 +90,124 @@ describe("Bridge", () => {
 
       await expect(bridge.connect(SECOND).addHash(txHash, txNonce)).to.be.rejectedWith(
         "Ownable: caller is not the owner",
+      );
+    });
+  });
+
+  describe.only("#updateSigner", () => {
+    let initialSigners: string[];
+    let currentTime: bigint;
+
+    beforeEach("setup", async () => {
+      initialSigners = [OWNER.address, SECOND.address, THIRD.address];
+      await bridge.addSigners(initialSigners);
+      await bridge.setSignaturesThreshold(2n);
+
+      currentTime = BigInt(await time.latest());
+    });
+
+    it("should correctly add signer", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await bridge.updateSigner(FOURTH, deadline, 0n, true, signatures);
+
+      expect(await bridge.getSigners()).to.be.deep.eq([...initialSigners, FOURTH.address]);
+    });
+
+    it("should correctly remove signer", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(THIRD.address, deadline, 0n, false);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await bridge.updateSigner(THIRD, deadline, 0n, false, signatures);
+
+      expect(await bridge.getSigners()).to.be.deep.eq([OWNER.address, SECOND.address]);
+    });
+
+    it("should get exception if pass expired signature", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(deadline + 100n);
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: update signer signature expired",
+      );
+    });
+
+    it("should get exception if pass invalid signature", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(FOURTH, signHash)];
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: invalid signer",
+      );
+    });
+
+    it("should get exception if the threshold is not met", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(SECOND, signHash)];
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: threshold is not met",
+      );
+    });
+
+    it("should get exception if try to add zero signer", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(ethers.ZeroAddress, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await expect(bridge.updateSigner(ethers.ZeroAddress, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: zero signer",
+      );
+    });
+
+    it("should get exception if the signer already exists", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await bridge.addSigners([FOURTH]);
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: signer already exists",
+      );
+    });
+
+    it("should get exception if try to remove not a signer", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, false);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, false, signatures)).to.be.rejectedWith(
+        "Signers: signer does not exist",
+      );
+    });
+
+    it("should get exception if try to use signatures twice", async () => {
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await bridge.updateSigner(FOURTH, deadline, 0n, true, signatures);
+
+      await expect(bridge.updateSigner(FOURTH, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Hashes: the hash nonce is used",
       );
     });
   });

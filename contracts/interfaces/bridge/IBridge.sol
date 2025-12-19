@@ -24,6 +24,22 @@ import "../handlers/INativeHandler.sol";
  */
 interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHandler {
     /**
+     * @notice function for updating the set of authorized signers by adding or removing one address
+     * @param signerToUpdate_ address to be added or removed from the signers set
+     * @param deadline_ unix timestamp after which the signatures are no longer valid
+     * @param txNonce_ nonce used to prevent replay of the same update request
+     * @param isAdding_ true to add `signerToUpdate_`, false to remove it
+     * @param signatures_ signatures from existing signers authorizing this update
+     */
+    function updateSigner(
+        address signerToUpdate_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_,
+        bytes[] calldata signatures_
+    ) external;
+
+    /**
      * @notice function for withdrawing erc20 tokens
      * @param token_ the address of withdrawn token
      * @param amount_ the amount of withdrawn tokens
@@ -126,4 +142,19 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
         uint256 txNonce_,
         bytes[] calldata signatures_
     ) external;
+
+    /**
+     * @notice function for computing the sign hash used by signers to authorize signer updates
+     * @param signerToUpdate_ address being added or removed
+     * @param deadline_ unix timestamp that is embedded into the hash
+     * @param txNonce_ nonce included in the hash to prevent replay
+     * @param isAdding_ indicates whether the operation is an add (true) or remove (false)
+     * @return bytes32 the message hash that signers should sign
+     */
+    function getUpdateSignersSignHash(
+        address signerToUpdate_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_
+    ) external pure returns (bytes32);
 }
