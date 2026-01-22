@@ -38,15 +38,18 @@ contract Bridge is
 
     function updateSigner(
         address signerToUpdate_,
+        uint256 startTime_,
         uint256 deadline_,
         uint256 txNonce_,
         bool isAdding_,
         bytes[] calldata signatures_
     ) external {
-        require(deadline_ >= block.timestamp, "Signers: update signer signature expired");
+        require(startTime_ < block.timestamp, "Bridge: unable to update signer yet");
+        require(deadline_ >= block.timestamp, "Bridge: update signer signature expired");
 
         bytes32 signHash_ = getUpdateSignersSignHash(
             signerToUpdate_,
+            startTime_,
             deadline_,
             txNonce_,
             isAdding_
@@ -58,9 +61,9 @@ contract Bridge is
         if (isAdding_) {
             _checkZeroSigner(signerToUpdate_);
 
-            require(_signers.add(signerToUpdate_), "Signers: signer already exists");
+            require(_signers.add(signerToUpdate_), "Bridge: signer already exists");
         } else {
-            require(_signers.remove(signerToUpdate_), "Signers: signer does not exist");
+            require(_signers.remove(signerToUpdate_), "Bridge: signer does not exist");
         }
     }
 
@@ -200,10 +203,14 @@ contract Bridge is
 
     function getUpdateSignersSignHash(
         address signerToUpdate_,
+        uint256 startTime_,
         uint256 deadline_,
         uint256 txNonce_,
         bool isAdding_
     ) public pure returns (bytes32) {
-        return keccak256(abi.encodePacked(signerToUpdate_, deadline_, txNonce_, isAdding_));
+        return
+            keccak256(
+                abi.encodePacked(signerToUpdate_, startTime_, deadline_, txNonce_, isAdding_)
+            );
     }
 }

@@ -26,6 +26,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
     /**
      * @notice function for updating the set of authorized signers by adding or removing one address
      * @param signerToUpdate_ address to be added or removed from the signers set
+     * @param startTime_ unix timestamp indicating when the signer update becomes active
      * @param deadline_ unix timestamp after which the signatures are no longer valid
      * @param txNonce_ nonce used to prevent replay of the same update request
      * @param isAdding_ true to add `signerToUpdate_`, false to remove it
@@ -33,6 +34,7 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
      */
     function updateSigner(
         address signerToUpdate_,
+        uint256 startTime_,
         uint256 deadline_,
         uint256 txNonce_,
         bool isAdding_,
@@ -146,13 +148,15 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
     /**
      * @notice function for computing the sign hash used by signers to authorize signer updates
      * @param signerToUpdate_ address being added or removed
-     * @param deadline_ unix timestamp that is embedded into the hash
+     * @param startTime_ unix timestamp indicating when the signer update becomes active
+     * @param deadline_ unix timestamp after which the signatures are no longer valid
      * @param txNonce_ nonce included in the hash to prevent replay
      * @param isAdding_ indicates whether the operation is an add (true) or remove (false)
      * @return bytes32 the message hash that signers should sign
      */
     function getUpdateSignersSignHash(
         address signerToUpdate_,
+        uint256 startTime_,
         uint256 deadline_,
         uint256 txNonce_,
         bool isAdding_

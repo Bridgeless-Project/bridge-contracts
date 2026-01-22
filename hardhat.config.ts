@@ -48,6 +48,11 @@ const config: HardhatUserConfig = {
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
+    polygon_amoy: {
+      url: `https://polygon-amoy.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
       accounts: privateKey(),
