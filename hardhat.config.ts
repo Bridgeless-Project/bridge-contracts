@@ -78,8 +78,8 @@ const config: HardhatUserConfig = {
       },
     },
   },
-  etherscan: {
-    apiKey: `${process.env.ETHERSCAN_KEY}`,
+  blockscout: {
+    enabled: true,
     customChains: [
       {
         network: "bridgelessTest",
@@ -98,6 +98,9 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+  },
+  etherscan: {
+    apiKey: `${process.env.ETHERSCAN_KEY}`,
   },
   migrate: {
     paths: {
