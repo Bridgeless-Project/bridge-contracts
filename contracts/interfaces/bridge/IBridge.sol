@@ -146,6 +146,24 @@ interface IBridge is IERC20Handler, IERC721Handler, IERC1155Handler, INativeHand
     ) external;
 
     /**
+     * @notice function for withdrawing native currency using merkle proof
+     * @param amount_ the amount of withdrawn native currency
+     * @param receiver_ the address of withdraw receiver
+     * @param txHash_ the hash of deposit transaction
+     * @param txNonce_ the nonce of deposit transaction
+     * @param merkleProof_ the array of merkle proof nodes
+     * @param signatures_ the array of signatures. Formed by signing a sign hash by each signer.
+     */
+    function withdrawNativeMerkelized(
+        uint256 amount_,
+        address receiver_,
+        bytes32 txHash_,
+        uint256 txNonce_,
+        bytes32[] calldata merkleProof_,
+        bytes[] calldata signatures_
+    ) external;
+
+    /**
      * @notice function for computing the sign hash used by signers to authorize signer updates
      * @param signerToUpdate_ address being added or removed
      * @param startTime_ unix timestamp indicating when the signer update becomes active

@@ -197,6 +197,30 @@ contract Bridge is
         _withdrawNative(amount_, receiver_);
     }
 
+    function withdrawNativeMerkelized(
+        uint256 amount_,
+        address receiver_,
+        bytes32 txHash_,
+        uint256 txNonce_,
+        bytes32[] calldata merkleProof_,
+        bytes[] calldata signatures_
+    ) external override {
+        bytes32 signHash_ = getNativeSignHash(
+            amount_,
+            receiver_,
+            txHash_,
+            txNonce_,
+            block.chainid
+        );
+
+        bytes32 merkleRoot_ = MerkleProof.processProof(merkleProof_, signHash_);
+
+        _checkAndUpdateHashes(txHash_, txNonce_);
+        _checkSignatures(merkleRoot_, signatures_);
+
+        _withdrawNative(amount_, receiver_);
+    }
+
     function addHash(bytes32 txHash_, uint256 txNonce_) external onlyOwner {
         _checkAndUpdateHashes(txHash_, txNonce_);
     }

@@ -458,6 +458,66 @@ describe("Bridge", () => {
       expect(await ethers.provider.getBalance(await bridge.getAddress())).to.equal(0);
       expect(await bridge.usedHashes(hash)).to.be.true;
     });
+
+    it("should withdrawNative using merkelized function", async () => {
+      const expectedAmount = wei("1");
+      const startNonce = 0n;
+
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount });
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount * 2n });
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount * 3n });
+
+      const signHash1 = await bridge.getNativeSignHash(
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+      const signHash2 = await bridge.getNativeSignHash(
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+      const signHash3 = await bridge.getNativeSignHash(
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+
+      const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+      const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+      const signature = await getSignature(OWNER, level2Hashes[0]);
+
+      let merkleProof = [signHash2, level1Hashes[1]];
+
+      let tx = await bridge.withdrawNativeMerkelized(expectedAmount, OWNER, txHash, startNonce, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(OWNER, expectedAmount);
+
+      merkleProof = [signHash1, level1Hashes[1]];
+
+      tx = await bridge.withdrawNativeMerkelized(expectedAmount * 2n, SECOND, txHash, startNonce + 1n, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(SECOND, expectedAmount * 2n);
+
+      merkleProof = [signHash3, level1Hashes[0]];
+
+      tx = await bridge.withdrawNativeMerkelized(expectedAmount * 3n, OWNER, txHash, startNonce + 2n, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(OWNER, expectedAmount * 3n);
+    });
   });
 
   describe("add hash", () => {
