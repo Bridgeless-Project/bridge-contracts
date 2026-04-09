@@ -31,6 +31,43 @@ abstract contract ERC20Handler is IERC20Handler {
         emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
     }
 
+    function bridgeAndSwapERC20(
+        address token_,
+        uint256 amount_,
+        address destinationToken_,
+        uint256 minDestinationAmount_,
+        uint256 swapDeadline_,
+        string calldata receiver_,
+        string calldata network_,
+        bool isWrapped_,
+        uint16 referralId_
+    ) external override {
+        require(token_ != address(0), "ERC20Handler: zero token");
+        require(amount_ > 0, "ERC20Handler: amount is zero");
+        require(destinationToken_ != address(0), "ERC20Handler: zero destination token");
+        require(minDestinationAmount_ > 0, "ERC20Handler: min destination amount is zero");
+
+        IERC20MintableBurnable erc20_ = IERC20MintableBurnable(token_);
+
+        if (isWrapped_) {
+            erc20_.burnFrom(msg.sender, amount_);
+        } else {
+            erc20_.safeTransferFrom(msg.sender, address(this), amount_);
+        }
+
+        emit BridgeAndSwappedERC20(
+            token_,
+            amount_,
+            destinationToken_,
+            minDestinationAmount_,
+            swapDeadline_,
+            receiver_,
+            network_,
+            isWrapped_,
+            referralId_
+        );
+    }
+
     function _withdrawERC20(
         address token_,
         uint256 amount_,
