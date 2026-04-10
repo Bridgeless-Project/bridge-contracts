@@ -66,9 +66,16 @@ describe("ERC1155Handler", () => {
       });
 
       it("should emit event correctly", async () => {
-        await expect(
-          handler.depositERC1155(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true, referralId),
-        )
+        const tx = await handler.depositERC1155(
+          await token.getAddress(),
+          baseId,
+          baseAmount,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
+        await expect(tx)
           .to.emit(handler, "DepositedERC1155")
           .withArgs(await token.getAddress(), baseId, baseAmount, "receiver", "kovan", true, referralId);
       });

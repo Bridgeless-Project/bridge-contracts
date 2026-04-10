@@ -51,13 +51,10 @@ describe("NativeHandler", () => {
     });
 
     it("should emit event correctly", async () => {
-      await expect(
-        handler.depositNative("receiver", "kovan", referralId, {
-          value: baseAmount,
-        }),
-      )
-        .to.emit(handler, "DepositedNative")
-        .withArgs(baseAmount, "receiver", "kovan", referralId);
+      const tx = await handler.depositNative("receiver", "kovan", referralId, {
+        value: baseAmount,
+      });
+      await expect(tx).to.emit(handler, "DepositedNative").withArgs(baseAmount, "receiver", "kovan", referralId);
     });
 
     it("should revert when try deposit 0 tokens", async () => {
@@ -98,19 +95,18 @@ describe("NativeHandler", () => {
     });
 
     it("should emit event correctly", async () => {
-      await expect(
-        handler.depositNativeAndSwap(
-          destinationToken,
-          expectedDestinationAmount,
-          swapDeadline,
-          "receiver",
-          "kovan",
-          referralId,
-          {
-            value: baseAmount,
-          },
-        ),
-      )
+      const tx = await handler.depositNativeAndSwap(
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        referralId,
+        {
+          value: baseAmount,
+        },
+      );
+      await expect(tx)
         .to.emit(handler, "BridgedNativeAndSwapped")
         .withArgs(
           baseAmount,

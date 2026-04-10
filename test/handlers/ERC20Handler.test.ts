@@ -63,9 +63,15 @@ describe("ERC20Handler", () => {
     it("should emit event correctly", async () => {
       const expectedAmount = wei("100");
 
-      await expect(
-        handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId),
-      )
+      const tx = await handler.depositERC20(
+        await token.getAddress(),
+        expectedAmount,
+        "receiver",
+        "kovan",
+        true,
+        referralId,
+      );
+      await expect(tx)
         .to.emit(handler, "DepositedERC20")
         .withArgs(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
     });
@@ -143,19 +149,18 @@ describe("ERC20Handler", () => {
     it("should emit event correctly", async () => {
       const expectedAmount = wei("100");
 
-      await expect(
-        handler.depositERC20AndSwap(
-          await token.getAddress(),
-          expectedAmount,
-          destinationToken,
-          expectedDestinationAmount,
-          swapDeadline,
-          "receiver",
-          "kovan",
-          true,
-          referralId,
-        ),
-      )
+      const tx = await handler.depositERC20AndSwap(
+        await token.getAddress(),
+        expectedAmount,
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        true,
+        referralId,
+      );
+      await expect(tx)
         .to.emit(handler, "DepositedERC20AndSwapped")
         .withArgs(
           await token.getAddress(),
