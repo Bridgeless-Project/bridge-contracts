@@ -17,16 +17,7 @@ abstract contract ERC20Handler is IERC20Handler {
         bool isWrapped_,
         uint16 referralId_
     ) external override {
-        require(token_ != address(0), "ERC20Handler: zero token");
-        require(amount_ > 0, "ERC20Handler: amount is zero");
-
-        IERC20MintableBurnable erc20_ = IERC20MintableBurnable(token_);
-
-        if (isWrapped_) {
-            erc20_.burnFrom(msg.sender, amount_);
-        } else {
-            erc20_.safeTransferFrom(msg.sender, address(this), amount_);
-        }
+        _depositERC20(token_, amount_, isWrapped_);
 
         emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
     }
@@ -42,18 +33,10 @@ abstract contract ERC20Handler is IERC20Handler {
         bool isWrapped_,
         uint16 referralId_
     ) external override {
-        require(token_ != address(0), "ERC20Handler: zero token");
-        require(amount_ > 0, "ERC20Handler: amount is zero");
         require(destinationToken_ != address(0), "ERC20Handler: zero destination token");
         require(minDestinationAmount_ > 0, "ERC20Handler: min destination amount is zero");
 
-        IERC20MintableBurnable erc20_ = IERC20MintableBurnable(token_);
-
-        if (isWrapped_) {
-            erc20_.burnFrom(msg.sender, amount_);
-        } else {
-            erc20_.safeTransferFrom(msg.sender, address(this), amount_);
-        }
+        _depositERC20(token_, amount_, isWrapped_);
 
         emit DepositedERC20AndSwapped(
             token_,
@@ -66,6 +49,19 @@ abstract contract ERC20Handler is IERC20Handler {
             isWrapped_,
             referralId_
         );
+    }
+
+    function _depositERC20(address token_, uint256 amount_, bool isWrapped_) internal {
+        require(token_ != address(0), "ERC20Handler: zero token");
+        require(amount_ > 0, "ERC20Handler: amount is zero");
+
+        IERC20MintableBurnable erc20_ = IERC20MintableBurnable(token_);
+
+        if (isWrapped_) {
+            erc20_.burnFrom(msg.sender, amount_);
+        } else {
+            erc20_.safeTransferFrom(msg.sender, address(this), amount_);
+        }
     }
 
     function _withdrawERC20(
