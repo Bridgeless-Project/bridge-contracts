@@ -8,9 +8,9 @@ interface INativeHandler {
     event DepositedNative(uint256 amount, string receiver, string network, uint16 referralId);
 
     /**
-     * @notice event emits from bridgeAndSwapNative function
+     * @notice event emits from depositNativeAndSwap function
      */
-    event BridgeAndSwappedNative(
+    event BridgedNativeAndSwapped(
         uint256 amount,
         address destinationToken,
         uint256 minDestinationAmount,
@@ -33,7 +33,7 @@ interface INativeHandler {
     ) external payable;
 
     /**
-     * @notice function for depositing native currency with destination swap details, emits event BridgeAndSwappedNative
+     * @notice function for depositing native currency with destination swap details, emits event BridgedNativeAndSwapped
      * @param destinationToken_ the destination token address on target network
      * @param minDestinationAmount_ the minimal amount expected on destination network
      * @param swapDeadline_ the deadline of swap transaction
@@ -41,7 +41,7 @@ interface INativeHandler {
      * @param network_ the network name of destination network, information field for event
      * @param referralId_ the referral id, information field for event
      */
-    function bridgeAndSwapNative(
+    function depositNativeAndSwap(
         address destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,

@@ -105,14 +105,14 @@ describe("ERC20Handler", () => {
     });
   });
 
-  describe("bridgeAndSwapERC20", () => {
+  describe("depositERC20AndSwap", () => {
     const expectedDestinationAmount = wei("200");
     const swapDeadline = 1234567890;
 
     it("should deposit 100 tokens, isWrapped = true", async () => {
       const expectedAmount = wei("100");
 
-      await handler.bridgeAndSwapERC20(
+      await handler.depositERC20AndSwap(
         await token.getAddress(),
         expectedAmount,
         destinationToken,
@@ -127,9 +127,9 @@ describe("ERC20Handler", () => {
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
       expect(await token.balanceOf(await handler.getAddress())).to.equal(0);
 
-      const depositEvent = (await handler.queryFilter(handler.filters.BridgeAndSwappedERC20, -1))[0];
+      const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC20AndSwapped, -1))[0];
 
-      expect(depositEvent.eventName).to.be.equal("BridgeAndSwappedERC20");
+      expect(depositEvent.eventName).to.be.equal("DepositedERC20AndSwapped");
       expect(depositEvent.args.token).to.be.equal(await token.getAddress());
       expect(depositEvent.args.amount).to.be.equal(expectedAmount);
       expect(depositEvent.args.destinationToken).to.be.equal(destinationToken);
@@ -144,7 +144,7 @@ describe("ERC20Handler", () => {
       const expectedAmount = wei("100");
 
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           await token.getAddress(),
           expectedAmount,
           destinationToken,
@@ -156,7 +156,7 @@ describe("ERC20Handler", () => {
           referralId,
         ),
       )
-        .to.emit(handler, "BridgeAndSwappedERC20")
+        .to.emit(handler, "DepositedERC20AndSwapped")
         .withArgs(
           await token.getAddress(),
           expectedAmount,
@@ -176,7 +176,7 @@ describe("ERC20Handler", () => {
       await token.approve(await handler.getAddress(), 0);
 
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           await token.getAddress(),
           expectedAmount,
           destinationToken,
@@ -193,7 +193,7 @@ describe("ERC20Handler", () => {
     it("should deposit 52 tokens, isWrapped = false", async () => {
       let expectedAmount = wei("52");
 
-      await handler.bridgeAndSwapERC20(
+      await handler.depositERC20AndSwap(
         await token.getAddress(),
         expectedAmount,
         destinationToken,
@@ -208,13 +208,13 @@ describe("ERC20Handler", () => {
       expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
       expect(await token.balanceOf(await handler.getAddress())).to.equal(expectedAmount);
 
-      const depositEvent = (await handler.queryFilter(handler.filters.BridgeAndSwappedERC20, -1))[0];
+      const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC20AndSwapped, -1))[0];
       expect(depositEvent.args.isWrapped).to.be.false;
     });
 
     it("should revert when try deposit 0 tokens", async () => {
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           await token.getAddress(),
           wei("0"),
           destinationToken,
@@ -230,7 +230,7 @@ describe("ERC20Handler", () => {
 
     it("should revert when token address is 0", async () => {
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           ethers.ZeroAddress,
           wei("1"),
           destinationToken,
@@ -246,7 +246,7 @@ describe("ERC20Handler", () => {
 
     it("should revert when destination token address is 0", async () => {
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           await token.getAddress(),
           wei("1"),
           ethers.ZeroAddress,
@@ -262,7 +262,7 @@ describe("ERC20Handler", () => {
 
     it("should revert when min destination amount is 0", async () => {
       await expect(
-        handler.bridgeAndSwapERC20(
+        handler.depositERC20AndSwap(
           await token.getAddress(),
           wei("1"),
           destinationToken,

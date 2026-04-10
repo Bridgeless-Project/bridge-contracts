@@ -67,12 +67,12 @@ describe("NativeHandler", () => {
     });
   });
 
-  describe("bridgeAndSwapNative", () => {
+  describe("depositNativeAndSwap", () => {
     const expectedDestinationAmount = wei("200");
     const swapDeadline = 1234567890;
 
     it("should deposit native", async () => {
-      await handler.bridgeAndSwapNative(
+      await handler.depositNativeAndSwap(
         destinationToken,
         expectedDestinationAmount,
         swapDeadline,
@@ -86,9 +86,9 @@ describe("NativeHandler", () => {
 
       expect(await ethers.provider.getBalance(await handler.getAddress())).to.equal(baseAmount);
 
-      const depositEvent = (await handler.queryFilter(handler.filters.BridgeAndSwappedNative, -1))[0];
+      const depositEvent = (await handler.queryFilter(handler.filters.BridgedNativeAndSwapped, -1))[0];
 
-      expect(depositEvent.eventName).to.be.equal("BridgeAndSwappedNative");
+      expect(depositEvent.eventName).to.be.equal("BridgedNativeAndSwapped");
       expect(depositEvent.args.amount).to.be.equal(baseAmount);
       expect(depositEvent.args.destinationToken).to.be.equal(destinationToken);
       expect(depositEvent.args.minDestinationAmount).to.be.equal(expectedDestinationAmount);
@@ -99,7 +99,7 @@ describe("NativeHandler", () => {
 
     it("should emit event correctly", async () => {
       await expect(
-        handler.bridgeAndSwapNative(
+        handler.depositNativeAndSwap(
           destinationToken,
           expectedDestinationAmount,
           swapDeadline,
@@ -111,7 +111,7 @@ describe("NativeHandler", () => {
           },
         ),
       )
-        .to.emit(handler, "BridgeAndSwappedNative")
+        .to.emit(handler, "BridgedNativeAndSwapped")
         .withArgs(
           baseAmount,
           destinationToken,
@@ -125,7 +125,7 @@ describe("NativeHandler", () => {
 
     it("should revert when try deposit 0 tokens", async () => {
       await expect(
-        handler.bridgeAndSwapNative(
+        handler.depositNativeAndSwap(
           destinationToken,
           expectedDestinationAmount,
           swapDeadline,
@@ -141,7 +141,7 @@ describe("NativeHandler", () => {
 
     it("should revert when destination token address is 0", async () => {
       await expect(
-        handler.bridgeAndSwapNative(
+        handler.depositNativeAndSwap(
           ethers.ZeroAddress,
           expectedDestinationAmount,
           swapDeadline,
@@ -157,7 +157,7 @@ describe("NativeHandler", () => {
 
     it("should revert when min destination amount is 0", async () => {
       await expect(
-        handler.bridgeAndSwapNative(destinationToken, wei("0"), swapDeadline, "receiver", "kovan", referralId, {
+        handler.depositNativeAndSwap(destinationToken, wei("0"), swapDeadline, "receiver", "kovan", referralId, {
           value: baseAmount,
         }),
       ).to.be.revertedWith("NativeHandler: min destination amount is zero");

@@ -31,7 +31,7 @@ abstract contract ERC20Handler is IERC20Handler {
         emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
     }
 
-    function bridgeAndSwapERC20(
+    function depositERC20AndSwap(
         address token_,
         uint256 amount_,
         address destinationToken_,
@@ -55,7 +55,7 @@ abstract contract ERC20Handler is IERC20Handler {
             erc20_.safeTransferFrom(msg.sender, address(this), amount_);
         }
 
-        emit BridgeAndSwappedERC20(
+        emit DepositedERC20AndSwapped(
             token_,
             amount_,
             destinationToken_,

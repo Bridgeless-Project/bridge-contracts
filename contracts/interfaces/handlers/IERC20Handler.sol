@@ -15,9 +15,9 @@ interface IERC20Handler {
     );
 
     /**
-     * @notice event emits from bridgeAndSwapERC20 function
+     * @notice event emits from depositERC20AndSwap function
      */
-    event BridgeAndSwappedERC20(
+    event DepositedERC20AndSwapped(
         address token,
         uint256 amount,
         address destinationToken,
@@ -48,7 +48,7 @@ interface IERC20Handler {
     ) external;
 
     /**
-     * @notice function for depositing erc20 tokens with destination swap details, emits event BridgeAndSwappedERC20
+     * @notice function for depositing erc20 tokens with destination swap details, emits event DepositedERC20AndSwapped
      * @param token_ the address of deposited token
      * @param amount_ the amount of deposited tokens
      * @param destinationToken_ the destination token address on target network
@@ -59,7 +59,7 @@ interface IERC20Handler {
      * @param isWrapped_ the boolean flag, if true - tokens will burned, false - tokens will transferred
      * @param referralId_ the referral id, information field for event
      */
-    function bridgeAndSwapERC20(
+    function depositERC20AndSwap(
         address token_,
         uint256 amount_,
         address destinationToken_,

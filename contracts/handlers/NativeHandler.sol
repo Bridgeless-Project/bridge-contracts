@@ -14,7 +14,7 @@ abstract contract NativeHandler is INativeHandler {
         emit DepositedNative(msg.value, receiver_, network_, referralId_);
     }
 
-    function bridgeAndSwapNative(
+    function depositNativeAndSwap(
         address destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,
@@ -26,7 +26,7 @@ abstract contract NativeHandler is INativeHandler {
         require(destinationToken_ != address(0), "NativeHandler: zero destination token");
         require(minDestinationAmount_ > 0, "NativeHandler: min destination amount is zero");
 
-        emit BridgeAndSwappedNative(
+        emit BridgedNativeAndSwapped(
             msg.value,
             destinationToken_,
             minDestinationAmount_,
