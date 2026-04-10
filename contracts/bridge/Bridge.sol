@@ -2,6 +2,8 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "../interfaces/bridge/IBridge.sol";
 
@@ -23,6 +25,8 @@ contract Bridge is
     ERC1155Handler,
     NativeHandler
 {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     function __Bridge_init(
         address[] calldata signers_,
         uint256 signaturesThreshold_
@@ -31,6 +35,37 @@ contract Bridge is
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+
+    function updateSigner(
+        address signerToUpdate_,
+        uint256 startTime_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_,
+        bytes[] calldata signatures_
+    ) external {
+        require(startTime_ < block.timestamp, "Bridge: unable to update signer yet");
+        require(deadline_ >= block.timestamp, "Bridge: update signer signature expired");
+
+        bytes32 signHash_ = getUpdateSignersSignHash(
+            signerToUpdate_,
+            startTime_,
+            deadline_,
+            txNonce_,
+            isAdding_
+        );
+
+        _checkAndUpdateHashes(signHash_, txNonce_);
+        _checkSignatures(signHash_, signatures_);
+
+        if (isAdding_) {
+            _checkZeroSigner(signerToUpdate_);
+
+            require(_signers.add(signerToUpdate_), "Bridge: signer already exists");
+        } else {
+            require(_signers.remove(signerToUpdate_), "Bridge: signer does not exist");
+        }
+    }
 
     function withdrawERC20(
         address token_,
@@ -53,6 +88,34 @@ contract Bridge is
 
         _checkAndUpdateHashes(txHash_, txNonce_);
         _checkSignatures(signHash_, signatures_);
+
+        _withdrawERC20(token_, amount_, receiver_, isWrapped_);
+    }
+
+    function withdrawERC20Merkelized(
+        address token_,
+        uint256 amount_,
+        address receiver_,
+        bytes32 txHash_,
+        uint256 txNonce_,
+        bool isWrapped_,
+        bytes32[] calldata merkleProof_,
+        bytes[] calldata signatures_
+    ) external override {
+        bytes32 signHash_ = getERC20SignHash(
+            token_,
+            amount_,
+            receiver_,
+            txHash_,
+            txNonce_,
+            block.chainid,
+            isWrapped_
+        );
+
+        bytes32 merkleRoot_ = MerkleProof.processProof(merkleProof_, signHash_);
+
+        _checkAndUpdateHashes(txHash_, txNonce_);
+        _checkSignatures(merkleRoot_, signatures_);
 
         _withdrawERC20(token_, amount_, receiver_, isWrapped_);
     }
@@ -134,7 +197,44 @@ contract Bridge is
         _withdrawNative(amount_, receiver_);
     }
 
+    function withdrawNativeMerkelized(
+        uint256 amount_,
+        address receiver_,
+        bytes32 txHash_,
+        uint256 txNonce_,
+        bytes32[] calldata merkleProof_,
+        bytes[] calldata signatures_
+    ) external override {
+        bytes32 signHash_ = getNativeSignHash(
+            amount_,
+            receiver_,
+            txHash_,
+            txNonce_,
+            block.chainid
+        );
+
+        bytes32 merkleRoot_ = MerkleProof.processProof(merkleProof_, signHash_);
+
+        _checkAndUpdateHashes(txHash_, txNonce_);
+        _checkSignatures(merkleRoot_, signatures_);
+
+        _withdrawNative(amount_, receiver_);
+    }
+
     function addHash(bytes32 txHash_, uint256 txNonce_) external onlyOwner {
         _checkAndUpdateHashes(txHash_, txNonce_);
+    }
+
+    function getUpdateSignersSignHash(
+        address signerToUpdate_,
+        uint256 startTime_,
+        uint256 deadline_,
+        uint256 txNonce_,
+        bool isAdding_
+    ) public pure returns (bytes32) {
+        return
+            keccak256(
+                abi.encodePacked(signerToUpdate_, startTime_, deadline_, txNonce_, isAdding_)
+            );
     }
 }

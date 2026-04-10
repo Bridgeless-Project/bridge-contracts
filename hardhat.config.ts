@@ -5,6 +5,7 @@ import "@nomicfoundation/hardhat-chai-matchers";
 import "@typechain/hardhat";
 
 import "@solarity/hardhat-migrate";
+import "@solarity/hardhat-gobind";
 
 import "hardhat-contract-sizer";
 import "hardhat-gas-reporter";
@@ -42,6 +43,16 @@ const config: HardhatUserConfig = {
       accounts: privateKey(),
       gasMultiplier: 1.2,
     },
+    base: {
+      url: `https://base-mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
+    polygon_amoy: {
+      url: `https://polygon-amoy.infura.io/v3/${process.env.INFURA_KEY}`,
+      accounts: privateKey(),
+      gasMultiplier: 1.2,
+    },
     bsc: {
       url: "https://bsc-dataseed.binance.org/",
       accounts: privateKey(),
@@ -67,8 +78,8 @@ const config: HardhatUserConfig = {
       },
     },
   },
-  etherscan: {
-    apiKey: `${process.env.ETHERSCAN_KEY}`,
+  blockscout: {
+    enabled: true,
     customChains: [
       {
         network: "bridgelessTest",
@@ -87,6 +98,9 @@ const config: HardhatUserConfig = {
         },
       },
     ],
+  },
+  etherscan: {
+    apiKey: `${process.env.ETHERSCAN_KEY}`,
   },
   migrate: {
     paths: {

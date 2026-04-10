@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 
 import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 import { wei } from "@scripts";
 import { getSignature, Reverter } from "@test-helpers";
@@ -22,14 +23,24 @@ describe("Bridge", () => {
 
   let OWNER: SignerWithAddress;
   let SECOND: SignerWithAddress;
+  let THIRD: SignerWithAddress;
+  let FOURTH: SignerWithAddress;
 
   let bridge: Bridge;
   let erc20: ERC20MintableBurnable;
   let erc721: ERC721MintableBurnable;
   let erc1155: ERC1155MintableBurnable;
 
+  function hashNode(node1: string, node2: string): string {
+    if (BigInt(node1) <= BigInt(node2)) {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node1, node2]);
+    } else {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node2, node1]);
+    }
+  }
+
   before("setup", async () => {
-    [OWNER, SECOND] = await ethers.getSigners();
+    [OWNER, SECOND, THIRD, FOURTH] = await ethers.getSigners();
 
     const Bridge = await ethers.getContractFactory("Bridge");
 
@@ -83,6 +94,161 @@ describe("Bridge", () => {
     });
   });
 
+  describe("#updateSigner", () => {
+    let initialSigners: string[];
+    let currentTime: bigint;
+
+    beforeEach("setup", async () => {
+      initialSigners = [OWNER.address, SECOND.address, THIRD.address];
+      await bridge.addSigners(initialSigners);
+      await bridge.setSignaturesThreshold(2n);
+
+      currentTime = BigInt(await time.latest());
+    });
+
+    it("should correctly add signer", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures);
+
+      expect(await bridge.getSigners()).to.be.deep.eq([...initialSigners, FOURTH.address]);
+    });
+
+    it("should correctly remove signer", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(THIRD.address, startTime, deadline, 0n, false);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await bridge.updateSigner(THIRD, startTime, deadline, 0n, false, signatures);
+
+      expect(await bridge.getSigners()).to.be.deep.eq([OWNER.address, SECOND.address]);
+    });
+
+    it("should get exception if try to update signer before the start time", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Bridge: unable to update signer yet",
+      );
+    });
+
+    it("should get exception if pass expired signature", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(deadline + 100n);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Bridge: update signer signature expired",
+      );
+    });
+
+    it("should get exception if pass invalid signature", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(FOURTH, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: invalid signer",
+      );
+    });
+
+    it("should get exception if the threshold is not met", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Signers: threshold is not met",
+      );
+    });
+
+    it("should get exception if try to add zero signer", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(ethers.ZeroAddress, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await expect(
+        bridge.updateSigner(ethers.ZeroAddress, startTime, deadline, 0n, true, signatures),
+      ).to.be.rejectedWith("Signers: zero signer");
+    });
+
+    it("should get exception if the signer already exists", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await bridge.addSigners([FOURTH]);
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Bridge: signer already exists",
+      );
+    });
+
+    it("should get exception if try to remove not a signer", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, false);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, false, signatures)).to.be.rejectedWith(
+        "Bridge: signer does not exist",
+      );
+    });
+
+    it("should get exception if try to use signatures twice", async () => {
+      const startTime = currentTime + 10n;
+      const deadline = currentTime + 600n;
+      const signHash = await bridge.getUpdateSignersSignHash(FOURTH.address, startTime, deadline, 0n, true);
+
+      const signatures = [await getSignature(OWNER, signHash), await getSignature(SECOND, signHash)];
+
+      await time.setNextBlockTimestamp(startTime + 1n);
+
+      await bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures);
+
+      await expect(bridge.updateSigner(FOURTH, startTime, deadline, 0n, true, signatures)).to.be.rejectedWith(
+        "Hashes: the hash nonce is used",
+      );
+    });
+  });
+
   describe("ERC20 flow", () => {
     it("should withdrawERC20", async () => {
       const expectedAmount = wei("100");
@@ -108,6 +274,94 @@ describe("Bridge", () => {
       expect(await erc20.balanceOf(await bridge.getAddress())).to.equal(0);
 
       expect(await bridge.usedHashes(hash)).to.be.true;
+    });
+
+    it("should withdrawERC20 using merkelized function", async () => {
+      const expectedAmount = wei("100");
+      const expectedIsWrapped = true;
+      const startNonce = 0n;
+
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount * 2n, "receiver", "kovan", true, referralId);
+      await bridge.depositERC20(await erc20.getAddress(), expectedAmount * 3n, "receiver", "kovan", true, referralId);
+
+      const signHash1 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+      const signHash2 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+      const signHash3 = await bridge.getERC20SignHash(
+        await erc20.getAddress(),
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        (await ethers.provider.getNetwork()).chainId,
+        expectedIsWrapped,
+      );
+
+      const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+      const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+      const signature = await getSignature(OWNER, level2Hashes[0]);
+
+      let merkleProof = [signHash2, level1Hashes[1]];
+
+      let tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, OWNER, expectedAmount);
+
+      merkleProof = [signHash1, level1Hashes[1]];
+
+      tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, SECOND, expectedAmount * 2n);
+
+      merkleProof = [signHash3, level1Hashes[0]];
+
+      tx = await bridge.withdrawERC20Merkelized(
+        await erc20.getAddress(),
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        expectedIsWrapped,
+        merkleProof,
+        [signature],
+      );
+
+      await expect(tx).to.changeTokenBalance(erc20, OWNER, expectedAmount * 3n);
     });
   });
 
@@ -203,6 +457,66 @@ describe("Bridge", () => {
 
       expect(await ethers.provider.getBalance(await bridge.getAddress())).to.equal(0);
       expect(await bridge.usedHashes(hash)).to.be.true;
+    });
+
+    it("should withdrawNative using merkelized function", async () => {
+      const expectedAmount = wei("1");
+      const startNonce = 0n;
+
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount });
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount * 2n });
+      await bridge.depositNative("receiver", "kovan", referralId, { value: expectedAmount * 3n });
+
+      const signHash1 = await bridge.getNativeSignHash(
+        expectedAmount,
+        OWNER,
+        txHash,
+        startNonce,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+      const signHash2 = await bridge.getNativeSignHash(
+        expectedAmount * 2n,
+        SECOND,
+        txHash,
+        startNonce + 1n,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+      const signHash3 = await bridge.getNativeSignHash(
+        expectedAmount * 3n,
+        OWNER,
+        txHash,
+        startNonce + 2n,
+        (await ethers.provider.getNetwork()).chainId,
+      );
+
+      const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+      const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+      const signature = await getSignature(OWNER, level2Hashes[0]);
+
+      let merkleProof = [signHash2, level1Hashes[1]];
+
+      let tx = await bridge.withdrawNativeMerkelized(expectedAmount, OWNER, txHash, startNonce, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(OWNER, expectedAmount);
+
+      merkleProof = [signHash1, level1Hashes[1]];
+
+      tx = await bridge.withdrawNativeMerkelized(expectedAmount * 2n, SECOND, txHash, startNonce + 1n, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(SECOND, expectedAmount * 2n);
+
+      merkleProof = [signHash3, level1Hashes[0]];
+
+      tx = await bridge.withdrawNativeMerkelized(expectedAmount * 3n, OWNER, txHash, startNonce + 2n, merkleProof, [
+        signature,
+      ]);
+
+      await expect(tx).to.changeEtherBalance(OWNER, expectedAmount * 3n);
     });
   });
 

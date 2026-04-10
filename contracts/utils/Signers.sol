@@ -57,7 +57,7 @@ abstract contract Signers is OwnableUpgradeable {
 
     function addSigners(address[] calldata signers_) public onlyOwner {
         for (uint256 i = 0; i < signers_.length; i++) {
-            require(signers_[i] != address(0), "Signers: zero signer");
+            _checkZeroSigner(signers_[i]);
 
             _signers.add(signers_[i]);
         }
@@ -71,5 +71,9 @@ abstract contract Signers is OwnableUpgradeable {
 
     function getSigners() external view returns (address[] memory) {
         return _signers.values();
+    }
+
+    function _checkZeroSigner(address signer_) internal pure {
+        require(signer_ != address(0), "Signers: zero signer");
     }
 }
