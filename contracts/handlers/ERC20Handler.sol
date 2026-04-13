@@ -17,6 +17,41 @@ abstract contract ERC20Handler is IERC20Handler {
         bool isWrapped_,
         uint16 referralId_
     ) external override {
+        _depositERC20(token_, amount_, isWrapped_);
+
+        emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
+    }
+
+    function depositERC20AndSwap(
+        address token_,
+        uint256 amount_,
+        address destinationToken_,
+        uint256 minDestinationAmount_,
+        uint256 swapDeadline_,
+        string calldata receiver_,
+        string calldata network_,
+        bool isWrapped_,
+        uint16 referralId_
+    ) external override {
+        require(destinationToken_ != address(0), "ERC20Handler: zero destination token");
+        require(minDestinationAmount_ > 0, "ERC20Handler: min destination amount is zero");
+
+        _depositERC20(token_, amount_, isWrapped_);
+
+        emit DepositedERC20AndSwapped(
+            token_,
+            amount_,
+            destinationToken_,
+            minDestinationAmount_,
+            swapDeadline_,
+            receiver_,
+            network_,
+            isWrapped_,
+            referralId_
+        );
+    }
+
+    function _depositERC20(address token_, uint256 amount_, bool isWrapped_) internal {
         require(token_ != address(0), "ERC20Handler: zero token");
         require(amount_ > 0, "ERC20Handler: amount is zero");
 
@@ -27,8 +62,6 @@ abstract contract ERC20Handler is IERC20Handler {
         } else {
             erc20_.safeTransferFrom(msg.sender, address(this), amount_);
         }
-
-        emit DepositedERC20(token_, amount_, receiver_, network_, isWrapped_, referralId_);
     }
 
     function _withdrawERC20(

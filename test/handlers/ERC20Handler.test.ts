@@ -18,6 +18,7 @@ describe("ERC20Handler", () => {
   let OWNER: SignerWithAddress;
 
   let token: ERC20MintableBurnable;
+  let destinationToken: ERC20MintableBurnable;
   let handler: ERC20HandlerMock;
 
   before("setup", async () => {
@@ -25,6 +26,7 @@ describe("ERC20Handler", () => {
 
     const ERC20MB = await ethers.getContractFactory("ERC20MintableBurnable");
     token = await ERC20MB.deploy("Mock", "MK", 18, OWNER.address);
+    destinationToken = await ERC20MB.deploy("DestinationMock", "DMK", 18, OWNER.address);
 
     const ERC20HandlerMock = await ethers.getContractFactory("ERC20HandlerMock");
     handler = await ERC20HandlerMock.deploy();
@@ -61,9 +63,15 @@ describe("ERC20Handler", () => {
     it("should emit event correctly", async () => {
       const expectedAmount = wei("100");
 
-      await expect(
-        handler.depositERC20(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId),
-      )
+      const tx = await handler.depositERC20(
+        await token.getAddress(),
+        expectedAmount,
+        "receiver",
+        "kovan",
+        true,
+        referralId,
+      );
+      await expect(tx)
         .to.emit(handler, "DepositedERC20")
         .withArgs(await token.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
     });
@@ -100,6 +108,177 @@ describe("ERC20Handler", () => {
       await expect(
         handler.depositERC20(ethers.ZeroAddress, wei("1"), "receiver", "kovan", false, referralId),
       ).to.be.rejectedWith("ERC20Handler: zero token");
+    });
+  });
+
+  describe("depositERC20AndSwap", () => {
+    const expectedDestinationAmount = wei("200");
+    const swapDeadline = 1234567890;
+
+    it("should deposit 100 tokens, isWrapped = true", async () => {
+      const expectedAmount = wei("100");
+
+      await handler.depositERC20AndSwap(
+        await token.getAddress(),
+        expectedAmount,
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        true,
+        referralId,
+      );
+
+      expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
+      expect(await token.balanceOf(await handler.getAddress())).to.equal(0);
+
+      const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC20AndSwapped, -1))[0];
+
+      expect(depositEvent.eventName).to.be.equal("DepositedERC20AndSwapped");
+      expect(depositEvent.args.token).to.be.equal(await token.getAddress());
+      expect(depositEvent.args.amount).to.be.equal(expectedAmount);
+      expect(depositEvent.args.destinationToken).to.be.equal(destinationToken);
+      expect(depositEvent.args.minDestinationAmount).to.be.equal(expectedDestinationAmount);
+      expect(depositEvent.args.swapDeadline).to.be.equal(swapDeadline);
+      expect(depositEvent.args.receiver).to.be.equal("receiver");
+      expect(depositEvent.args.network).to.be.equal("kovan");
+      expect(depositEvent.args.isWrapped).to.be.true;
+    });
+
+    it("should emit event correctly", async () => {
+      const expectedAmount = wei("100");
+
+      const tx = await handler.depositERC20AndSwap(
+        await token.getAddress(),
+        expectedAmount,
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        true,
+        referralId,
+      );
+      await expect(tx)
+        .to.emit(handler, "DepositedERC20AndSwapped")
+        .withArgs(
+          await token.getAddress(),
+          expectedAmount,
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        );
+    });
+
+    it("should not burn tokens if they are not approved", async () => {
+      let expectedAmount = wei("100");
+
+      await token.approve(await handler.getAddress(), 0);
+
+      await expect(
+        handler.depositERC20AndSwap(
+          await token.getAddress(),
+          expectedAmount,
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          true,
+          referralId,
+        ),
+      ).to.be.rejectedWith("ERC20: insufficient allowance");
+    });
+
+    it("should deposit 52 tokens, isWrapped = false", async () => {
+      let expectedAmount = wei("52");
+
+      await handler.depositERC20AndSwap(
+        await token.getAddress(),
+        expectedAmount,
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        false,
+        referralId,
+      );
+
+      expect(await token.balanceOf(OWNER.address)).to.equal(baseBalance - expectedAmount);
+      expect(await token.balanceOf(await handler.getAddress())).to.equal(expectedAmount);
+
+      const depositEvent = (await handler.queryFilter(handler.filters.DepositedERC20AndSwapped, -1))[0];
+      expect(depositEvent.args.isWrapped).to.be.false;
+    });
+
+    it("should revert when try deposit 0 tokens", async () => {
+      await expect(
+        handler.depositERC20AndSwap(
+          await token.getAddress(),
+          wei("0"),
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        ),
+      ).to.be.rejectedWith("ERC20Handler: amount is zero");
+    });
+
+    it("should revert when token address is 0", async () => {
+      await expect(
+        handler.depositERC20AndSwap(
+          ethers.ZeroAddress,
+          wei("1"),
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        ),
+      ).to.be.rejectedWith("ERC20Handler: zero token");
+    });
+
+    it("should revert when destination token address is 0", async () => {
+      await expect(
+        handler.depositERC20AndSwap(
+          await token.getAddress(),
+          wei("1"),
+          ethers.ZeroAddress,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        ),
+      ).to.be.rejectedWith("ERC20Handler: zero destination token");
+    });
+
+    it("should revert when min destination amount is 0", async () => {
+      await expect(
+        handler.depositERC20AndSwap(
+          await token.getAddress(),
+          wei("1"),
+          destinationToken,
+          wei("0"),
+          swapDeadline,
+          "receiver",
+          "kovan",
+          false,
+          referralId,
+        ),
+      ).to.be.rejectedWith("ERC20Handler: min destination amount is zero");
     });
   });
 

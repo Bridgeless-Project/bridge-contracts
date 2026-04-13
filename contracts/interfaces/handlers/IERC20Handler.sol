@@ -15,6 +15,21 @@ interface IERC20Handler {
     );
 
     /**
+     * @notice event emits from depositERC20AndSwap function
+     */
+    event DepositedERC20AndSwapped(
+        address token,
+        uint256 amount,
+        address destinationToken,
+        uint256 minDestinationAmount,
+        uint256 swapDeadline,
+        string receiver,
+        string network,
+        bool isWrapped,
+        uint16 referralId
+    );
+
+    /**
      * @notice function for depositing erc20 tokens, emits event DepositedERC20
      * @param token_ the address of deposited token
      * @param amount_ the amount of deposited tokens
@@ -26,6 +41,30 @@ interface IERC20Handler {
     function depositERC20(
         address token_,
         uint256 amount_,
+        string calldata receiver_,
+        string calldata network_,
+        bool isWrapped_,
+        uint16 referralId_
+    ) external;
+
+    /**
+     * @notice function for depositing erc20 tokens with destination swap details, emits event DepositedERC20AndSwapped
+     * @param token_ the address of deposited token
+     * @param amount_ the amount of deposited tokens
+     * @param destinationToken_ the destination token address on target network
+     * @param minDestinationAmount_ the minimal amount expected on destination network
+     * @param swapDeadline_ the deadline of swap transaction
+     * @param receiver_ the receiver address in destination network, information field for event
+     * @param network_ the network name of destination network, information field for event
+     * @param isWrapped_ the boolean flag, if true - tokens will burned, false - tokens will transferred
+     * @param referralId_ the referral id, information field for event
+     */
+    function depositERC20AndSwap(
+        address token_,
+        uint256 amount_,
+        address destinationToken_,
+        uint256 minDestinationAmount_,
+        uint256 swapDeadline_,
         string calldata receiver_,
         string calldata network_,
         bool isWrapped_,

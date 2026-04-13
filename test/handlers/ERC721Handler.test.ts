@@ -57,7 +57,8 @@ describe("ERC721Handler", () => {
       });
 
       it("should emit event correctly", async () => {
-        await expect(handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId))
+        const tx = await handler.depositERC721(await token.getAddress(), baseId, "receiver", "kovan", true, referralId);
+        await expect(tx)
           .to.emit(handler, "DepositedERC721")
           .withArgs(await token.getAddress(), baseId, "receiver", "kovan", true, referralId);
       });

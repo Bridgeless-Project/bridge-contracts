@@ -7,7 +7,7 @@ import { wei } from "@scripts";
 
 import { Reverter } from "@test-helpers";
 
-import { NativeHandlerMock } from "@ethers-v6";
+import { ERC20MintableBurnable, NativeHandlerMock } from "@ethers-v6";
 
 describe("NativeHandler", () => {
   const reverter = new Reverter();
@@ -17,10 +17,14 @@ describe("NativeHandler", () => {
 
   let OWNER: SignerWithAddress;
 
+  let destinationToken: ERC20MintableBurnable;
   let handler: NativeHandlerMock;
 
   before("setup", async () => {
     [OWNER] = await ethers.getSigners();
+
+    const ERC20MB = await ethers.getContractFactory("ERC20MintableBurnable");
+    destinationToken = await ERC20MB.deploy("DestinationMock", "DMK", 18, OWNER.address);
 
     const NativeHandlerMock = await ethers.getContractFactory("NativeHandlerMock");
     handler = await NativeHandlerMock.deploy();
@@ -47,19 +51,112 @@ describe("NativeHandler", () => {
     });
 
     it("should emit event correctly", async () => {
-      await expect(
-        handler.depositNative("receiver", "kovan", referralId, {
-          value: baseAmount,
-        }),
-      )
-        .to.emit(handler, "DepositedNative")
-        .withArgs(baseAmount, "receiver", "kovan", referralId);
+      const tx = await handler.depositNative("receiver", "kovan", referralId, {
+        value: baseAmount,
+      });
+      await expect(tx).to.emit(handler, "DepositedNative").withArgs(baseAmount, "receiver", "kovan", referralId);
     });
 
     it("should revert when try deposit 0 tokens", async () => {
       await expect(handler.depositNative("receiver", "kovan", referralId, { value: 0 })).to.be.revertedWith(
         "NativeHandler: zero value",
       );
+    });
+  });
+
+  describe("depositNativeAndSwap", () => {
+    const expectedDestinationAmount = wei("200");
+    const swapDeadline = 1234567890;
+
+    it("should deposit native", async () => {
+      await handler.depositNativeAndSwap(
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        referralId,
+        {
+          value: baseAmount,
+        },
+      );
+
+      expect(await ethers.provider.getBalance(await handler.getAddress())).to.equal(baseAmount);
+
+      const depositEvent = (await handler.queryFilter(handler.filters.BridgedNativeAndSwapped, -1))[0];
+
+      expect(depositEvent.eventName).to.be.equal("BridgedNativeAndSwapped");
+      expect(depositEvent.args.amount).to.be.equal(baseAmount);
+      expect(depositEvent.args.destinationToken).to.be.equal(destinationToken);
+      expect(depositEvent.args.minDestinationAmount).to.be.equal(expectedDestinationAmount);
+      expect(depositEvent.args.swapDeadline).to.be.equal(swapDeadline);
+      expect(depositEvent.args.receiver).to.be.equal("receiver");
+      expect(depositEvent.args.network).to.be.equal("kovan");
+    });
+
+    it("should emit event correctly", async () => {
+      const tx = await handler.depositNativeAndSwap(
+        destinationToken,
+        expectedDestinationAmount,
+        swapDeadline,
+        "receiver",
+        "kovan",
+        referralId,
+        {
+          value: baseAmount,
+        },
+      );
+      await expect(tx)
+        .to.emit(handler, "BridgedNativeAndSwapped")
+        .withArgs(
+          baseAmount,
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          referralId,
+        );
+    });
+
+    it("should revert when try deposit 0 tokens", async () => {
+      await expect(
+        handler.depositNativeAndSwap(
+          destinationToken,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          referralId,
+          {
+            value: 0,
+          },
+        ),
+      ).to.be.revertedWith("NativeHandler: zero value");
+    });
+
+    it("should revert when destination token address is 0", async () => {
+      await expect(
+        handler.depositNativeAndSwap(
+          ethers.ZeroAddress,
+          expectedDestinationAmount,
+          swapDeadline,
+          "receiver",
+          "kovan",
+          referralId,
+          {
+            value: baseAmount,
+          },
+        ),
+      ).to.be.revertedWith("NativeHandler: zero destination token");
+    });
+
+    it("should revert when min destination amount is 0", async () => {
+      await expect(
+        handler.depositNativeAndSwap(destinationToken, wei("0"), swapDeadline, "receiver", "kovan", referralId, {
+          value: baseAmount,
+        }),
+      ).to.be.revertedWith("NativeHandler: min destination amount is zero");
     });
   });
 
