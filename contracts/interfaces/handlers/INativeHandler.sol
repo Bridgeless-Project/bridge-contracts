@@ -21,6 +21,11 @@ interface INativeHandler {
     );
 
     /**
+     * @notice event emits from withdrawNative function
+     */
+    event WithdrawnNative(uint256 amount, address receiver);
+
+    /**
      * @notice function for depositing native currency, emits event DepositedNative
      * @param receiver_ the receiver address in destination network, information field for event
      * @param network_ the network name of destination network, information field for event

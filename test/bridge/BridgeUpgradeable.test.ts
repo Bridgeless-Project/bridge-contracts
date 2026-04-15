@@ -8,7 +8,7 @@ import { Reverter } from "@test-helpers";
 
 import { ERC1967Proxy, Bridge, Bridge__factory } from "@ethers-v6";
 
-describe("Upgradeable", () => {
+describe("BridgeUpgradeable", () => {
   const reverter = new Reverter();
 
   let OWNER: SignerWithAddress;

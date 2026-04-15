@@ -45,6 +45,8 @@ abstract contract ERC721Handler is IERC721Handler, ERC721Holder {
         } else {
             erc721_.safeTransferFrom(address(this), receiver_, tokenId_);
         }
+
+        emit WithdrawnERC721(token_, tokenId_, receiver_, tokenURI_, isWrapped_);
     }
 
     function getERC721SignHash(

@@ -15,6 +15,17 @@ interface IERC721Handler {
     );
 
     /**
+     * @notice event emits from withdrawERC721 function
+     */
+    event WithdrawnERC721(
+        address token,
+        uint256 tokenId,
+        address receiver,
+        string tokenURI,
+        bool isWrapped
+    );
+
+    /**
      * @notice function for depositing erc721 tokens, emits event DepositedERC721
      * @param token_ the address of deposited token
      * @param tokenId_ the id of deposited token
