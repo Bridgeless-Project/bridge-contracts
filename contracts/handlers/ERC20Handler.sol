@@ -33,7 +33,6 @@ abstract contract ERC20Handler is IERC20Handler {
         bool isWrapped_,
         uint16 referralId_
     ) external override {
-        require(destinationToken_ != address(0), "ERC20Handler: zero destination token");
         require(minDestinationAmount_ > 0, "ERC20Handler: min destination amount is zero");
 
         _depositERC20(token_, amount_, isWrapped_);

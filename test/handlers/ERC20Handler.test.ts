@@ -249,7 +249,7 @@ describe("ERC20Handler", () => {
       ).to.be.rejectedWith("ERC20Handler: zero token");
     });
 
-    it("should revert when destination token address is 0", async () => {
+    it("should not revert when destination token address is 0", async () => {
       await expect(
         handler.depositERC20AndSwap(
           await token.getAddress(),
@@ -262,7 +262,7 @@ describe("ERC20Handler", () => {
           false,
           referralId,
         ),
-      ).to.be.rejectedWith("ERC20Handler: zero destination token");
+      ).to.not.be.reverted;
     });
 
     it("should revert when min destination amount is 0", async () => {

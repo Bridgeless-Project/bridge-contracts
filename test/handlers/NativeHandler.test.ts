@@ -135,7 +135,7 @@ describe("NativeHandler", () => {
       ).to.be.revertedWith("NativeHandler: zero value");
     });
 
-    it("should revert when destination token address is 0", async () => {
+    it("should not revert when destination token address is 0", async () => {
       await expect(
         handler.depositNativeAndSwap(
           ethers.ZeroAddress,
@@ -148,7 +148,7 @@ describe("NativeHandler", () => {
             value: baseAmount,
           },
         ),
-      ).to.be.revertedWith("NativeHandler: zero destination token");
+      ).to.not.be.reverted;
     });
 
     it("should revert when min destination amount is 0", async () => {

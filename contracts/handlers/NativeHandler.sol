@@ -23,7 +23,6 @@ abstract contract NativeHandler is INativeHandler {
         uint16 referralId_
     ) external payable override {
         require(msg.value > 0, "NativeHandler: zero value");
-        require(destinationToken_ != address(0), "NativeHandler: zero destination token");
         require(minDestinationAmount_ > 0, "NativeHandler: min destination amount is zero");
 
         emit BridgedNativeAndSwapped(
