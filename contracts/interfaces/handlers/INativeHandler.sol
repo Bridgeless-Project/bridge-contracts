@@ -12,7 +12,7 @@ interface INativeHandler {
      */
     event BridgedNativeAndSwapped(
         uint256 amount,
-        address destinationToken,
+        string destinationToken,
         uint256 minDestinationAmount,
         uint256 swapDeadline,
         string receiver,
@@ -42,7 +42,7 @@ interface INativeHandler {
      * @param referralId_ the referral id, information field for event
      */
     function depositNativeAndSwap(
-        address destinationToken_,
+        string calldata destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,
         string calldata receiver_,

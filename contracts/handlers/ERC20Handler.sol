@@ -25,7 +25,7 @@ abstract contract ERC20Handler is IERC20Handler {
     function depositERC20AndSwap(
         address token_,
         uint256 amount_,
-        address destinationToken_,
+        string calldata destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,
         string calldata receiver_,
