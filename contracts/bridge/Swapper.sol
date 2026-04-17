@@ -10,7 +10,7 @@ import "../utils/Strings.sol";
 
 import "../interfaces/bridge/IBridge.sol";
 import "../interfaces/bridge/ISwapper.sol";
-import "../interfaces/uniswap-v2/periphery/IUniswapV2Router02.sol";
+import "../interfaces/uniswap-v2/IUniswapV2Router.sol";
 
 contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeable {
     using Address for address payable;
@@ -216,8 +216,8 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         return
             abi.encodeWithSelector(
                 isDestinationTokenNative_
-                    ? IUniswapV2Router02(uniswapV2Router).swapExactTokensForETH.selector
-                    : IUniswapV2Router02(uniswapV2Router).swapExactTokensForTokens.selector,
+                    ? IUniswapV2Router(uniswapV2Router).swapExactTokensForETH.selector
+                    : IUniswapV2Router(uniswapV2Router).swapExactTokensForTokens.selector,
                 amount_,
                 minDestinationAmount_,
                 path_,
