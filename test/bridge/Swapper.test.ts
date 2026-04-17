@@ -208,6 +208,10 @@ describe("Swapper", () => {
             isDestinationTokenNative,
           );
 
+          await expect(tx)
+            .to.emit(swapper, "LocalNativeTransferred")
+            .withArgs(getDefaultSwapParams().minDestinationAmount, getDefaultDepositParams().receiver);
+
           await expect(tx).to.changeEtherBalances(
             [uniswapV2Router, getDefaultDepositParams().receiver],
             [-getDefaultSwapParams().minDestinationAmount, getDefaultSwapParams().minDestinationAmount],
@@ -233,6 +237,15 @@ describe("Swapper", () => {
             network,
             0n, // isWrapped == false
           );
+
+          await expect(tx)
+            .to.emit(swapper, "CrossChainNativeDeposited")
+            .withArgs(
+              getDefaultSwapParams().minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              network,
+              referralId,
+            );
 
           await expect(tx).to.changeEtherBalances(
             [uniswapV2Router, bridge],
@@ -298,14 +311,14 @@ describe("Swapper", () => {
           );
 
         await expect(tx)
-          .to.emit(swapper, "WithdrewSwappedAndFallbackDeposited")
+          .to.emit(swapper, "CrossChainERC20FallbackDeposited")
           .withArgs(
             await erc20_1.getAddress(),
             (await getDefaultWithdrawParams()).amount,
-            await erc20_3.getAddress(),
             getDefaultFallbackDepositParams().receiver,
             getDefaultFallbackDepositParams().network,
             getDefaultFallbackDepositParams().isWrapped,
+            getDefaultFallbackDepositParams().referralId,
           );
       });
     });
@@ -322,6 +335,14 @@ describe("Swapper", () => {
             getDefaultFallbackDepositParams(),
             isDestinationTokenNative,
           );
+
+          await expect(tx)
+            .to.emit(swapper, "LocalERC20Transferred")
+            .withArgs(
+              getDefaultSwapParams().minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              await erc20_3.getAddress(),
+            );
 
           await expect(tx).to.changeTokenBalance(
             erc20_3,
@@ -345,6 +366,17 @@ describe("Swapper", () => {
 
           await expect(tx)
             .to.emit(bridge, "DepositedERC20")
+            .withArgs(
+              await erc20_3.getAddress(),
+              getDefaultSwapParams().minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              network,
+              getDefaultDepositParams().isWrapped,
+              referralId,
+            );
+
+          await expect(tx)
+            .to.emit(swapper, "CrossChainERC20Deposited")
             .withArgs(
               await erc20_3.getAddress(),
               getDefaultSwapParams().minDestinationAmount,
@@ -415,14 +447,14 @@ describe("Swapper", () => {
           );
 
         await expect(tx)
-          .to.emit(swapper, "WithdrewSwappedAndFallbackDeposited")
+          .to.emit(swapper, "CrossChainERC20FallbackDeposited")
           .withArgs(
             await erc20_1.getAddress(),
             (await getDefaultWithdrawParams()).amount,
-            await erc20_3.getAddress(),
             getDefaultFallbackDepositParams().receiver,
             getDefaultFallbackDepositParams().network,
             getDefaultFallbackDepositParams().isWrapped,
+            getDefaultFallbackDepositParams().referralId,
           );
       });
     });

@@ -96,8 +96,12 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
 
         if (isDestinationTokenNative_) {
             payable(receiver_).sendValue(amount_);
+
+            emit LocalNativeTransferred(amount_, receiver_);
         } else {
             IERC20(destinationToken_).safeTransfer(receiver_, amount_);
+
+            emit LocalERC20Transferred(amount_, receiver_, destinationToken_);
         }
     }
 
@@ -113,9 +117,25 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
                 params_.network,
                 params_.referralId
             );
+
+            emit CrossChainNativeDeposited(
+                amount_,
+                params_.receiver,
+                params_.network,
+                params_.referralId
+            );
         } else {
             _approveERC20(destinationToken_, address(bridge), amount_);
             bridge.depositERC20(
+                destinationToken_,
+                amount_,
+                params_.receiver,
+                params_.network,
+                params_.isWrapped,
+                params_.referralId
+            );
+
+            emit CrossChainERC20Deposited(
                 destinationToken_,
                 amount_,
                 params_.receiver,
@@ -159,10 +179,9 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
 
         if (!success_) {
-            _handleSwapFallback(
+            _handleCrossChainDepositFallback(
                 sourceToken_,
                 withdrawParams_.amount,
-                swapParams_.path[swapParams_.path.length - 1],
                 fallbackDepositParams_
             );
 
@@ -179,10 +198,9 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         token_.safeApprove(spender_, amount_);
     }
 
-    function _handleSwapFallback(
+    function _handleCrossChainDepositFallback(
         address sourceToken_,
         uint256 amount_,
-        address targetToken_,
         DepositParams calldata fallbackParams_
     ) internal {
         _approveERC20(sourceToken_, address(bridge), amount_);
@@ -196,13 +214,13 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
             fallbackParams_.referralId
         );
 
-        emit WithdrewSwappedAndFallbackDeposited(
+        emit CrossChainERC20FallbackDeposited(
             sourceToken_,
             amount_,
-            targetToken_,
             fallbackParams_.receiver,
             fallbackParams_.network,
-            fallbackParams_.isWrapped
+            fallbackParams_.isWrapped,
+            fallbackParams_.referralId
         );
     }
 

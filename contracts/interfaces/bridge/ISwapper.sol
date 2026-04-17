@@ -52,13 +52,33 @@ interface ISwapper {
         uint16 referralId;
     }
 
-    event WithdrewSwappedAndFallbackDeposited(
-        address initialToken,
-        uint256 initialAmount,
-        address destinationToken,
+    event CrossChainERC20FallbackDeposited(
+        address token,
+        uint256 amount,
         string receiver,
         string network,
-        bool isWrapped
+        bool isWrapped,
+        uint16 referralId
+    );
+
+    event LocalNativeTransferred(uint256 amount, address receiver);
+
+    event LocalERC20Transferred(uint256 amount, address receiver, address token);
+
+    event CrossChainNativeDeposited(
+        uint256 amount,
+        string receiver,
+        string network,
+        uint16 referralId
+    );
+
+    event CrossChainERC20Deposited(
+        address token,
+        uint256 amount,
+        string receiver,
+        string network,
+        bool isWrapped,
+        uint16 referralId
     );
 
     /**
