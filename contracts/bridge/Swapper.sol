@@ -144,25 +144,15 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
 
         _approveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
 
-        bytes memory swapCallData = isDestinationTokenNative_
-            ? abi.encodeWithSelector(
-                IUniswapV2Router02(uniswapV2Router).swapExactTokensForETH.selector,
-                withdrawParams_.amount,
-                swapParams_.minDestinationAmount,
-                swapParams_.path,
-                address(this),
-                swapParams_.swapDeadline
-            )
-            : abi.encodeWithSelector(
-                IUniswapV2Router02(uniswapV2Router).swapExactTokensForTokens.selector,
-                withdrawParams_.amount,
-                swapParams_.minDestinationAmount,
-                swapParams_.path,
-                address(this),
-                swapParams_.swapDeadline
-            );
+        bytes memory swapCallData_ = _buildSwapCallData(
+            swapParams_.path,
+            withdrawParams_.amount,
+            swapParams_.minDestinationAmount,
+            swapParams_.swapDeadline,
+            isDestinationTokenNative_
+        );
 
-        (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData);
+        (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
 
         if (!success_) {
             _approveERC20(sourceToken_, address(bridge), withdrawParams_.amount);
@@ -200,5 +190,25 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
         return keccak256(abi.encodePacked(network_)) == keccak256(abi.encodePacked(network));
+    }
+
+    function _buildSwapCallData(
+        address[] calldata path_,
+        uint256 amount_,
+        uint256 minDestinationAmount_,
+        uint256 swapDeadline_,
+        bool isDestinationTokenNative_
+    ) internal view returns (bytes memory) {
+        return
+            abi.encodeWithSelector(
+                isDestinationTokenNative_
+                    ? IUniswapV2Router02(uniswapV2Router).swapExactTokensForETH.selector
+                    : IUniswapV2Router02(uniswapV2Router).swapExactTokensForTokens.selector,
+                amount_,
+                minDestinationAmount_,
+                path_,
+                address(this),
+                swapDeadline_
+            );
     }
 }
