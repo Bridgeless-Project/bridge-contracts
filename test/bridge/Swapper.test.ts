@@ -6,7 +6,15 @@ import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
 import { wei } from "@scripts";
 import { getSignature, Reverter } from "@test-helpers";
 
-import { ERC20MintableBurnable, Bridge, Swapper, UniswapV2RouterMock, ISwapper } from "@ethers-v6";
+import {
+  ERC20MintableBurnable,
+  Bridge,
+  Swapper,
+  UniswapV2RouterMock,
+  ISwapper,
+  Bridge__factory,
+  Swapper__factory,
+} from "@ethers-v6";
 
 describe("Swapper", () => {
   const reverter = new Reverter();
@@ -90,9 +98,12 @@ describe("Swapper", () => {
   before("setup", async () => {
     [OWNER, SECOND, RECEIVER, FALLBACK_RECEIVER] = await ethers.getSigners();
 
-    const Bridge = await ethers.getContractFactory("Bridge");
+    const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy");
 
-    bridge = await Bridge.deploy();
+    const Bridge = await ethers.getContractFactory("Bridge");
+    const bridgeImplementation = await Bridge.deploy();
+    const bridgeProxy = await ERC1967Proxy.deploy(await bridgeImplementation.getAddress(), "0x");
+    bridge = Bridge__factory.connect(await bridgeProxy.getAddress(), OWNER);
     await bridge.__Bridge_init([OWNER.address], "1");
 
     const ERC20MB = await ethers.getContractFactory("ERC20MintableBurnable");
@@ -120,7 +131,9 @@ describe("Swapper", () => {
     await erc20_3.transferOwnership(await uniswapV2Router.getAddress());
 
     const Swapper = await ethers.getContractFactory("Swapper");
-    swapper = await Swapper.deploy();
+    const swapperImplementation = await Swapper.deploy();
+    const swapperProxy = await ERC1967Proxy.deploy(await swapperImplementation.getAddress(), "0x");
+    swapper = Swapper__factory.connect(await swapperProxy.getAddress(), OWNER);
     await swapper.__Swapper_init(network, await bridge.getAddress(), await uniswapV2Router.getAddress());
 
     await swapper.grantRole(await swapper.OPERATOR_ROLE(), OWNER);
@@ -150,6 +163,20 @@ describe("Swapper", () => {
           ),
       ).to.be.rejectedWith(
         `AccessControl: account ${SECOND.address.toLowerCase()} is missing role ${await swapper.OPERATOR_ROLE()}`,
+      );
+    });
+
+    it("should upgrade implementation", async () => {
+      const Swapper = await ethers.getContractFactory("Swapper");
+      const newSwapper = await Swapper.deploy();
+
+      await swapper.upgradeTo(await newSwapper.getAddress());
+      await expect(swapper.upgradeTo(await newSwapper.getAddress())).to.be.eventually.fulfilled;
+    });
+
+    it("should revert when call from non owner address", async () => {
+      await expect(swapper.connect(SECOND).upgradeTo(ethers.ZeroAddress)).to.be.rejectedWith(
+        `AccessControl: account ${SECOND.address.toLowerCase()} is missing role ${await swapper.DEFAULT_ADMIN_ROLE()}`,
       );
     });
   });
