@@ -155,24 +155,11 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
 
         if (!success_) {
-            _approveERC20(sourceToken_, address(bridge), withdrawParams_.amount);
-
-            bridge.depositERC20(
-                sourceToken_,
-                withdrawParams_.amount,
-                fallbackDepositParams_.receiver,
-                fallbackDepositParams_.network,
-                fallbackDepositParams_.isWrapped,
-                0
-            );
-
-            emit WithdrewSwappedAndFallbackDeposited(
+            _handleSwapFallback(
                 sourceToken_,
                 withdrawParams_.amount,
                 swapParams_.path[swapParams_.path.length - 1],
-                fallbackDepositParams_.receiver,
-                fallbackDepositParams_.network,
-                fallbackDepositParams_.isWrapped
+                fallbackDepositParams_
             );
 
             return (false, new uint256[](0));
@@ -186,6 +173,33 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
 
         token_.safeApprove(spender_, 0);
         token_.safeApprove(spender_, amount_);
+    }
+
+    function _handleSwapFallback(
+        address sourceToken_,
+        uint256 amount_,
+        address targetToken_,
+        DepositParams calldata fallbackParams_
+    ) internal {
+        _approveERC20(sourceToken_, address(bridge), amount_);
+
+        bridge.depositERC20(
+            sourceToken_,
+            amount_,
+            fallbackParams_.receiver,
+            fallbackParams_.network,
+            fallbackParams_.isWrapped,
+            0
+        );
+
+        emit WithdrewSwappedAndFallbackDeposited(
+            sourceToken_,
+            amount_,
+            targetToken_,
+            fallbackParams_.receiver,
+            fallbackParams_.network,
+            fallbackParams_.isWrapped
+        );
     }
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
