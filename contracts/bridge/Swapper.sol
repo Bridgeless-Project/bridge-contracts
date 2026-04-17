@@ -26,7 +26,8 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
     function __Swapper_init(
         string calldata network_,
         address bridgeAddress_,
-        address uniswapV2RouterAddress_
+        address uniswapV2RouterAddress_,
+        address[] calldata operators_
     ) external initializer {
         __AccessControlEnumerable_init();
 
@@ -35,6 +36,10 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         network = network_;
         bridge = IBridge(bridgeAddress_);
         uniswapV2Router = uniswapV2RouterAddress_;
+
+        for (uint256 i = 0; i < operators_.length; i++) {
+            _grantRole(OPERATOR_ROLE, operators_[i]);
+        }
     }
 
     receive() external payable {}

@@ -134,9 +134,7 @@ describe("Swapper", () => {
     const swapperImplementation = await Swapper.deploy();
     const swapperProxy = await ERC1967Proxy.deploy(await swapperImplementation.getAddress(), "0x");
     swapper = Swapper__factory.connect(await swapperProxy.getAddress(), OWNER);
-    await swapper.__Swapper_init(network, await bridge.getAddress(), await uniswapV2Router.getAddress());
-
-    await swapper.grantRole(await swapper.OPERATOR_ROLE(), OWNER);
+    await swapper.__Swapper_init(network, await bridge.getAddress(), await uniswapV2Router.getAddress(), [OWNER]);
 
     await reverter.snapshot();
   });
@@ -145,7 +143,7 @@ describe("Swapper", () => {
 
   describe("access", () => {
     it("should not initialize twice", async () => {
-      await expect(swapper.__Swapper_init(network, bridge, uniswapV2Router)).to.be.rejectedWith(
+      await expect(swapper.__Swapper_init(network, bridge, uniswapV2Router, [])).to.be.rejectedWith(
         "Initializable: contract is already initialized",
       );
     });
@@ -188,6 +186,7 @@ describe("Swapper", () => {
       expect(await swapper.uniswapV2Router()).to.equal(await uniswapV2Router.getAddress());
 
       expect(await swapper.getRoleMember(await swapper.DEFAULT_ADMIN_ROLE(), 0)).to.equal(OWNER.address);
+      expect(await swapper.getRoleMember(await swapper.OPERATOR_ROLE(), 0)).to.equal(OWNER.address);
     });
   });
 
