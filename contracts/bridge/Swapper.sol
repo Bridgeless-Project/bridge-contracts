@@ -17,7 +17,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
     using Strings for string;
     using SafeERC20 for IERC20;
 
-    bytes32 public constant SWAP_ROLE = keccak256("SWAP_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
 
     string public network;
     IBridge public bridge;
@@ -49,7 +49,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         DepositParams calldata destinationDepositParams_,
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
-    ) external onlyRole(SWAP_ROLE) {
+    ) external onlyRole(OPERATOR_ROLE) {
         (bool swapSuccess_, uint256[] memory amounts_) = _withdrawAndSwap(
             withdrawParams_,
             swapParams_,

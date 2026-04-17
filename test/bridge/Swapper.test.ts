@@ -123,7 +123,7 @@ describe("Swapper", () => {
     swapper = await Swapper.deploy();
     await swapper.__Swapper_init(network, await bridge.getAddress(), await uniswapV2Router.getAddress());
 
-    await swapper.grantRole(await swapper.SWAP_ROLE(), OWNER);
+    await swapper.grantRole(await swapper.OPERATOR_ROLE(), OWNER);
 
     await reverter.snapshot();
   });
@@ -149,7 +149,7 @@ describe("Swapper", () => {
             true,
           ),
       ).to.be.rejectedWith(
-        `AccessControl: account ${SECOND.address.toLowerCase()} is missing role ${await swapper.SWAP_ROLE()}`,
+        `AccessControl: account ${SECOND.address.toLowerCase()} is missing role ${await swapper.OPERATOR_ROLE()}`,
       );
     });
   });
