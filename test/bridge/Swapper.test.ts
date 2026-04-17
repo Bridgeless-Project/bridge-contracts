@@ -76,6 +76,7 @@ describe("Swapper", () => {
       receiver: RECEIVER.address,
       network: network,
       isWrapped: false,
+      referralId: referralId,
     };
   }
 
@@ -84,6 +85,7 @@ describe("Swapper", () => {
       receiver: FALLBACK_RECEIVER.address,
       network: "fallback",
       isWrapped: false,
+      referralId: "1",
     };
   }
 
@@ -292,7 +294,7 @@ describe("Swapper", () => {
             getDefaultFallbackDepositParams().receiver,
             getDefaultFallbackDepositParams().network,
             getDefaultFallbackDepositParams().isWrapped,
-            referralId,
+            getDefaultFallbackDepositParams().referralId,
           );
 
         await expect(tx)
@@ -408,8 +410,8 @@ describe("Swapper", () => {
             (await getDefaultWithdrawParams()).amount,
             getDefaultFallbackDepositParams().receiver,
             getDefaultFallbackDepositParams().network,
-            getDefaultDepositParams().isWrapped,
-            referralId,
+            getDefaultFallbackDepositParams().isWrapped,
+            getDefaultFallbackDepositParams().referralId,
           );
 
         await expect(tx)

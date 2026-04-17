@@ -108,7 +108,11 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         bool isDestinationTokenNative_
     ) internal {
         if (isDestinationTokenNative_) {
-            bridge.depositNative{value: amount_}(params_.receiver, params_.network, 0);
+            bridge.depositNative{value: amount_}(
+                params_.receiver,
+                params_.network,
+                params_.referralId
+            );
         } else {
             _approveERC20(destinationToken_, address(bridge), amount_);
             bridge.depositERC20(
@@ -117,7 +121,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
                 params_.receiver,
                 params_.network,
                 params_.isWrapped,
-                0
+                params_.referralId
             );
         }
     }
@@ -189,7 +193,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
             fallbackParams_.receiver,
             fallbackParams_.network,
             fallbackParams_.isWrapped,
-            0
+            fallbackParams_.referralId
         );
 
         emit WithdrewSwappedAndFallbackDeposited(

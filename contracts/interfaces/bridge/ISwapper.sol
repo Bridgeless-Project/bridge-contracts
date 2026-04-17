@@ -43,11 +43,13 @@ interface ISwapper {
      * @param receiver The receiver of the assets
      * @param network The network of the assets
      * @param isWrapped Whether the assets are wrapped
+     * @param referralId The referral id
      */
     struct DepositParams {
         string receiver;
         string network;
         bool isWrapped;
+        uint16 referralId;
     }
 
     event WithdrewSwappedAndFallbackDeposited(
