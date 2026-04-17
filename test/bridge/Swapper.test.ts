@@ -37,15 +37,7 @@ describe("Swapper", () => {
   let erc20_2: ERC20MintableBurnable;
   let erc20_3: ERC20MintableBurnable;
 
-  function hashNode(node1: string, node2: string): string {
-    if (BigInt(node1) <= BigInt(node2)) {
-      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node1, node2]);
-    } else {
-      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node2, node1]);
-    }
-  }
-
-  async function _getDefaultWithdrawParams(
+  async function getDefaultWithdrawParams(
     receiver = swapper,
     token = erc20_1,
     amount = wei(1),
@@ -71,7 +63,7 @@ describe("Swapper", () => {
     };
   }
 
-  function _getDefaultSwapParams(): ISwapper.SwapParamsStruct {
+  function getDefaultSwapParams(): ISwapper.SwapParamsStruct {
     return {
       minDestinationAmount: 123,
       swapDeadline: 456,
@@ -79,7 +71,7 @@ describe("Swapper", () => {
     };
   }
 
-  function _getDefaultDepositParams(): ISwapper.DepositParamsStruct {
+  function getDefaultDepositParams(): ISwapper.DepositParamsStruct {
     return {
       receiver: RECEIVER.address,
       network: network,
@@ -87,7 +79,7 @@ describe("Swapper", () => {
     };
   }
 
-  function _getDefaultFallbackDepositParams(): ISwapper.DepositParamsStruct {
+  function getDefaultFallbackDepositParams(): ISwapper.DepositParamsStruct {
     return {
       receiver: FALLBACK_RECEIVER.address,
       network: "fallback",
@@ -153,10 +145,10 @@ describe("Swapper", () => {
         swapper
           .connect(SECOND)
           .executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            _getDefaultDepositParams(),
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            getDefaultDepositParams(),
+            getDefaultFallbackDepositParams(),
             true,
           ),
       ).to.be.rejectedWith(
@@ -207,16 +199,16 @@ describe("Swapper", () => {
       describe("isCurrentNetwork == true", () => {
         it("should transfer native to receiver", async () => {
           const tx = await swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            _getDefaultDepositParams(),
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            getDefaultDepositParams(),
+            getDefaultFallbackDepositParams(),
             isDestinationTokenNative,
           );
 
           await expect(tx).to.changeEtherBalances(
-            [uniswapV2Router, _getDefaultDepositParams().receiver],
-            [-_getDefaultSwapParams().minDestinationAmount, _getDefaultSwapParams().minDestinationAmount],
+            [uniswapV2Router, getDefaultDepositParams().receiver],
+            [-getDefaultSwapParams().minDestinationAmount, getDefaultSwapParams().minDestinationAmount],
           );
         });
       });
@@ -226,44 +218,44 @@ describe("Swapper", () => {
 
         it("should call bridge.depositNative", async () => {
           const tx = await swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            { ..._getDefaultDepositParams(), network: network },
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            { ...getDefaultDepositParams(), network: network },
+            getDefaultFallbackDepositParams(),
             isDestinationTokenNative,
           );
 
           await expect(tx).to.emit(bridge, "DepositedNative").withArgs(
-            _getDefaultSwapParams().minDestinationAmount,
-            _getDefaultDepositParams().receiver,
+            getDefaultSwapParams().minDestinationAmount,
+            getDefaultDepositParams().receiver,
             network,
             0n, // isWrapped == false
           );
 
           await expect(tx).to.changeEtherBalances(
             [uniswapV2Router, bridge],
-            [-_getDefaultSwapParams().minDestinationAmount, _getDefaultSwapParams().minDestinationAmount],
+            [-getDefaultSwapParams().minDestinationAmount, getDefaultSwapParams().minDestinationAmount],
           );
         });
       });
 
       it("should call uniswap swapExactTokensForETH", async () => {
         const tx = await swapper.executeSwapAndRoute(
-          await _getDefaultWithdrawParams(),
-          _getDefaultSwapParams(),
-          _getDefaultDepositParams(),
-          _getDefaultFallbackDepositParams(),
+          await getDefaultWithdrawParams(),
+          getDefaultSwapParams(),
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
           isDestinationTokenNative,
         );
 
         await expect(tx)
           .to.emit(uniswapV2Router, "SwapExactTokensForETH")
           .withArgs(
-            (await _getDefaultWithdrawParams()).amount,
-            _getDefaultSwapParams().minDestinationAmount,
-            _getDefaultSwapParams().path,
+            (await getDefaultWithdrawParams()).amount,
+            getDefaultSwapParams().minDestinationAmount,
+            getDefaultSwapParams().path,
             await swapper.getAddress(),
-            _getDefaultSwapParams().swapDeadline,
+            getDefaultSwapParams().swapDeadline,
           );
       });
 
@@ -272,10 +264,10 @@ describe("Swapper", () => {
 
         await expect(
           swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            _getDefaultDepositParams(),
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            getDefaultDepositParams(),
+            getDefaultFallbackDepositParams(),
             true,
           ),
         ).to.be.eventually.fulfilled;
@@ -285,10 +277,10 @@ describe("Swapper", () => {
         await uniswapV2Router.setWillRevert(true);
 
         const tx = await swapper.executeSwapAndRoute(
-          await _getDefaultWithdrawParams(),
-          _getDefaultSwapParams(),
-          _getDefaultDepositParams(),
-          _getDefaultFallbackDepositParams(),
+          await getDefaultWithdrawParams(),
+          getDefaultSwapParams(),
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
           true,
         );
 
@@ -296,10 +288,10 @@ describe("Swapper", () => {
           .to.emit(bridge, "DepositedERC20")
           .withArgs(
             await erc20_1.getAddress(),
-            (await _getDefaultWithdrawParams()).amount,
-            _getDefaultFallbackDepositParams().receiver,
-            _getDefaultFallbackDepositParams().network,
-            _getDefaultFallbackDepositParams().isWrapped,
+            (await getDefaultWithdrawParams()).amount,
+            getDefaultFallbackDepositParams().receiver,
+            getDefaultFallbackDepositParams().network,
+            getDefaultFallbackDepositParams().isWrapped,
             referralId,
           );
 
@@ -307,11 +299,11 @@ describe("Swapper", () => {
           .to.emit(swapper, "WithdrewSwappedAndFallbackDeposited")
           .withArgs(
             await erc20_1.getAddress(),
-            (await _getDefaultWithdrawParams()).amount,
+            (await getDefaultWithdrawParams()).amount,
             await erc20_3.getAddress(),
-            _getDefaultFallbackDepositParams().receiver,
-            _getDefaultFallbackDepositParams().network,
-            _getDefaultFallbackDepositParams().isWrapped,
+            getDefaultFallbackDepositParams().receiver,
+            getDefaultFallbackDepositParams().network,
+            getDefaultFallbackDepositParams().isWrapped,
           );
       });
     });
@@ -322,17 +314,17 @@ describe("Swapper", () => {
       describe("isCurrentNetwork == true", () => {
         it("should transfer ERC20 to receiver", async () => {
           const tx = await swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            _getDefaultDepositParams(),
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            getDefaultDepositParams(),
+            getDefaultFallbackDepositParams(),
             isDestinationTokenNative,
           );
 
           await expect(tx).to.changeTokenBalance(
             erc20_3,
-            _getDefaultDepositParams().receiver,
-            _getDefaultSwapParams().minDestinationAmount,
+            getDefaultDepositParams().receiver,
+            getDefaultSwapParams().minDestinationAmount,
           );
         });
       });
@@ -342,10 +334,10 @@ describe("Swapper", () => {
 
         it("should call bridge.depositERC20", async () => {
           const tx = await swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            { ..._getDefaultDepositParams(), network: network },
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            { ...getDefaultDepositParams(), network: network },
+            getDefaultFallbackDepositParams(),
             isDestinationTokenNative,
           );
 
@@ -353,34 +345,34 @@ describe("Swapper", () => {
             .to.emit(bridge, "DepositedERC20")
             .withArgs(
               await erc20_3.getAddress(),
-              _getDefaultSwapParams().minDestinationAmount,
-              _getDefaultDepositParams().receiver,
+              getDefaultSwapParams().minDestinationAmount,
+              getDefaultDepositParams().receiver,
               network,
-              _getDefaultDepositParams().isWrapped,
+              getDefaultDepositParams().isWrapped,
               referralId,
             );
 
-          await expect(tx).to.changeTokenBalance(erc20_3, bridge, _getDefaultSwapParams().minDestinationAmount);
+          await expect(tx).to.changeTokenBalance(erc20_3, bridge, getDefaultSwapParams().minDestinationAmount);
         });
       });
 
       it("should call uniswap swapExactTokensForTokens", async () => {
         const tx = await swapper.executeSwapAndRoute(
-          await _getDefaultWithdrawParams(),
-          _getDefaultSwapParams(),
-          _getDefaultDepositParams(),
-          _getDefaultFallbackDepositParams(),
+          await getDefaultWithdrawParams(),
+          getDefaultSwapParams(),
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
           isDestinationTokenNative,
         );
 
         await expect(tx)
           .to.emit(uniswapV2Router, "SwapExactTokensForTokens")
           .withArgs(
-            (await _getDefaultWithdrawParams()).amount,
-            _getDefaultSwapParams().minDestinationAmount,
-            _getDefaultSwapParams().path,
+            (await getDefaultWithdrawParams()).amount,
+            getDefaultSwapParams().minDestinationAmount,
+            getDefaultSwapParams().path,
             await swapper.getAddress(),
-            _getDefaultSwapParams().swapDeadline,
+            getDefaultSwapParams().swapDeadline,
           );
       });
 
@@ -389,10 +381,10 @@ describe("Swapper", () => {
 
         await expect(
           swapper.executeSwapAndRoute(
-            await _getDefaultWithdrawParams(),
-            _getDefaultSwapParams(),
-            _getDefaultDepositParams(),
-            _getDefaultFallbackDepositParams(),
+            await getDefaultWithdrawParams(),
+            getDefaultSwapParams(),
+            getDefaultDepositParams(),
+            getDefaultFallbackDepositParams(),
             true,
           ),
         ).to.be.eventually.fulfilled;
@@ -402,10 +394,10 @@ describe("Swapper", () => {
         await uniswapV2Router.setWillRevert(true);
 
         const tx = await swapper.executeSwapAndRoute(
-          await _getDefaultWithdrawParams(),
-          _getDefaultSwapParams(),
-          _getDefaultDepositParams(),
-          _getDefaultFallbackDepositParams(),
+          await getDefaultWithdrawParams(),
+          getDefaultSwapParams(),
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
           true,
         );
 
@@ -413,10 +405,10 @@ describe("Swapper", () => {
           .to.emit(bridge, "DepositedERC20")
           .withArgs(
             await erc20_1.getAddress(),
-            (await _getDefaultWithdrawParams()).amount,
-            _getDefaultFallbackDepositParams().receiver,
-            _getDefaultFallbackDepositParams().network,
-            _getDefaultDepositParams().isWrapped,
+            (await getDefaultWithdrawParams()).amount,
+            getDefaultFallbackDepositParams().receiver,
+            getDefaultFallbackDepositParams().network,
+            getDefaultDepositParams().isWrapped,
             referralId,
           );
 
@@ -424,11 +416,11 @@ describe("Swapper", () => {
           .to.emit(swapper, "WithdrewSwappedAndFallbackDeposited")
           .withArgs(
             await erc20_1.getAddress(),
-            (await _getDefaultWithdrawParams()).amount,
+            (await getDefaultWithdrawParams()).amount,
             await erc20_3.getAddress(),
-            _getDefaultFallbackDepositParams().receiver,
-            _getDefaultFallbackDepositParams().network,
-            _getDefaultFallbackDepositParams().isWrapped,
+            getDefaultFallbackDepositParams().receiver,
+            getDefaultFallbackDepositParams().network,
+            getDefaultFallbackDepositParams().isWrapped,
           );
       });
     });
@@ -436,10 +428,10 @@ describe("Swapper", () => {
     it("should revert if the path length is less than 2", async () => {
       await expect(
         swapper.executeSwapAndRoute(
-          await _getDefaultWithdrawParams(),
-          { ..._getDefaultSwapParams(), path: [erc20_1] },
-          _getDefaultDepositParams(),
-          _getDefaultFallbackDepositParams(),
+          await getDefaultWithdrawParams(),
+          { ...getDefaultSwapParams(), path: [erc20_1] },
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
           true,
         ),
       ).to.be.rejectedWith("Swapper: path length is less than 2");
