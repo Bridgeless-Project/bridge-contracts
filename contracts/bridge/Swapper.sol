@@ -110,8 +110,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         if (isDestinationTokenNative_) {
             bridge.depositNative{value: amount_}(params_.receiver, params_.network, 0);
         } else {
-            IERC20(destinationToken_).safeApprove(address(bridge), 0);
-            IERC20(destinationToken_).safeApprove(address(bridge), amount_);
+            _approveERC20(destinationToken_, address(bridge), amount_);
             bridge.depositERC20(
                 destinationToken_,
                 amount_,
@@ -143,8 +142,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
             withdrawParams_.signatures
         );
 
-        IERC20(sourceToken_).safeApprove(uniswapV2Router, 0);
-        IERC20(sourceToken_).safeApprove(uniswapV2Router, withdrawParams_.amount);
+        _approveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
 
         bytes memory swapCallData = isDestinationTokenNative_
             ? abi.encodeWithSelector(
@@ -167,8 +165,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData);
 
         if (!success_) {
-            IERC20(sourceToken_).safeApprove(address(bridge), 0);
-            IERC20(sourceToken_).safeApprove(address(bridge), withdrawParams_.amount);
+            _approveERC20(sourceToken_, address(bridge), withdrawParams_.amount);
 
             bridge.depositERC20(
                 sourceToken_,
@@ -192,6 +189,13 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         }
 
         return (true, abi.decode(returndata_, (uint256[])));
+    }
+
+    function _approveERC20(address tokenAddress_, address spender_, uint256 amount_) internal {
+        IERC20 token_ = IERC20(tokenAddress_);
+
+        token_.safeApprove(spender_, 0);
+        token_.safeApprove(spender_, amount_);
     }
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
