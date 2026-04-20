@@ -82,6 +82,22 @@ interface ISwapper {
     );
 
     /**
+     * @notice Transfers assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
+     * @param amountIn_ The amount of assets to transfer
+     * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
+     * @param destinationDepositParams_ The parameters for depositing destination assets
+     * @param isSourceTokenNative_ Whether the source token is native
+     * @param isDestinationTokenNative_ Whether the destination token is native
+     */
+    function transferSwapAndRoute(
+        uint256 amountIn_,
+        SwapParams calldata swapParams_,
+        DepositParams calldata destinationDepositParams_,
+        bool isSourceTokenNative_,
+        bool isDestinationTokenNative_
+    ) external payable;
+
+    /**
      * @notice Withdraws assets from the Bridge, swaps them on the Uniswap V2 pool, and routes them to the destination network
      * @param withdrawParams_ The parameters for withdrawing assets from the Bridge
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
@@ -89,7 +105,7 @@ interface ISwapper {
      * @param fallbackDepositParams_ The parameters for depositing assets back into the Bridge if the swap fails
      * @param isDestinationTokenNative_ Whether the destination token is native
      */
-    function executeSwapAndRoute(
+    function withdrawSwapAndRoute(
         WithdrawParams calldata withdrawParams_,
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,

@@ -20,6 +20,13 @@ contract UniswapV2RouterMock {
         address to,
         uint256 deadline
     );
+    event SwapExactETHForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] path,
+        address to,
+        uint256 deadline
+    );
 
     bool public willRevert;
 
@@ -78,5 +85,33 @@ contract UniswapV2RouterMock {
         amounts_[path_.length - 1] = amountOutMin_;
 
         emit SwapExactTokensForETH(amountIn_, amountOutMin_, path_, to_, deadline_);
+    }
+
+    function swapExactETHForTokens(
+        uint256 amountOutMin_,
+        address[] calldata path_,
+        address to_,
+        uint256 deadline_
+    ) external payable returns (uint256[] memory amounts_) {
+        if (willRevert) {
+            revert("UniswapV2RouterMock: will revert");
+        }
+
+        uint256 amountIn_ = msg.value;
+
+        (bool success, ) = to_.call{value: amountIn_}(new bytes(0));
+        require(success, "UniswapV2RouterMock: ETH transfer failed");
+
+        IERC20MintableBurnable(path_[path_.length - 1]).mintTo(to_, amountOutMin_);
+
+        amounts_ = new uint256[](path_.length);
+
+        for (uint256 i = 0; i < path_.length - 1; i++) {
+            amounts_[i] = i + 1;
+        }
+
+        amounts_[path_.length - 1] = amountOutMin_;
+
+        emit SwapExactETHForTokens(amountIn_, amountOutMin_, path_, to_, deadline_);
     }
 }

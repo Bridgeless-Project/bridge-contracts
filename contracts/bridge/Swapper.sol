@@ -48,27 +48,58 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         address newImplementation
     ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
-    function executeSwapAndRoute(
+    function transferSwapAndRoute(
+        uint256 amountIn_,
+        SwapParams calldata swapParams_,
+        DepositParams calldata destinationDepositParams_,
+        bool isSourceTokenNative_,
+        bool isDestinationTokenNative_
+    ) external payable {
+        uint256 destinationAmount_ = _transferAndSwap(
+            amountIn_,
+            swapParams_,
+            isSourceTokenNative_,
+            isDestinationTokenNative_
+        );
+
+        _routeDestination(
+            destinationAmount_,
+            swapParams_.path[swapParams_.path.length - 1],
+            destinationDepositParams_,
+            isDestinationTokenNative_
+        );
+    }
+
+    function withdrawSwapAndRoute(
         WithdrawParams calldata withdrawParams_,
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
     ) external onlyRole(OPERATOR_ROLE) {
-        (bool swapSuccess_, uint256[] memory amounts_) = _withdrawAndSwap(
+        (bool swapSuccess_, uint256 destinationAmount_) = _withdrawAndSwap(
             withdrawParams_,
             swapParams_,
             fallbackDepositParams_,
             isDestinationTokenNative_
         );
 
-        if (!swapSuccess_) {
-            return;
-        }
+        if (!swapSuccess_) return;
 
-        address destinationToken_ = swapParams_.path[swapParams_.path.length - 1];
-        uint256 destinationAmount_ = amounts_[amounts_.length - 1];
+        _routeDestination(
+            destinationAmount_,
+            swapParams_.path[swapParams_.path.length - 1],
+            destinationDepositParams_,
+            isDestinationTokenNative_
+        );
+    }
 
+    function _routeDestination(
+        uint256 destinationAmount_,
+        address destinationToken_,
+        DepositParams calldata destinationDepositParams_,
+        bool isDestinationTokenNative_
+    ) internal {
         if (isCurrentNetwork(destinationDepositParams_.network)) {
             _handleLocalTransfer(
                 destinationDepositParams_.receiver,
@@ -86,8 +117,105 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         }
     }
 
+    function _transferAndSwap(
+        uint256 amountIn_,
+        SwapParams calldata swapParams_,
+        bool isSourceTokenNative_,
+        bool isDestinationTokenNative_
+    ) internal returns (uint256) {
+        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
+
+        uint256[] memory amounts_;
+        if (isSourceTokenNative_) {
+            require(msg.value == amountIn_, "Swapper: msg.value does not match amountIn_");
+            require(!isDestinationTokenNative_, "Swapper: native-to-native swap not supported");
+
+            amounts_ = IUniswapV2Router(uniswapV2Router).swapExactETHForTokens{value: amountIn_}(
+                swapParams_.minDestinationAmount,
+                swapParams_.path,
+                address(this),
+                swapParams_.swapDeadline
+            );
+        } else {
+            require(msg.value == 0, "Swapper: msg.value must be 0 for ERC20 source");
+
+            address sourceToken_ = swapParams_.path[0];
+
+            IERC20(sourceToken_).safeTransferFrom(msg.sender, address(this), amountIn_);
+
+            _approveERC20(sourceToken_, uniswapV2Router, amountIn_);
+
+            if (isDestinationTokenNative_) {
+                amounts_ = IUniswapV2Router(uniswapV2Router).swapExactTokensForETH(
+                    amountIn_,
+                    swapParams_.minDestinationAmount,
+                    swapParams_.path,
+                    address(this),
+                    swapParams_.swapDeadline
+                );
+            } else {
+                amounts_ = IUniswapV2Router(uniswapV2Router).swapExactTokensForTokens(
+                    amountIn_,
+                    swapParams_.minDestinationAmount,
+                    swapParams_.path,
+                    address(this),
+                    swapParams_.swapDeadline
+                );
+            }
+        }
+
+        return amounts_[amounts_.length - 1];
+    }
+
+    function _withdrawAndSwap(
+        WithdrawParams calldata withdrawParams_,
+        SwapParams calldata swapParams_,
+        DepositParams calldata fallbackDepositParams_,
+        bool isDestinationTokenNative_
+    ) internal returns (bool, uint256) {
+        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
+
+        address sourceToken_ = swapParams_.path[0];
+
+        bridge.withdrawERC20(
+            sourceToken_,
+            withdrawParams_.amount,
+            address(this),
+            withdrawParams_.txHash,
+            withdrawParams_.txNonce,
+            withdrawParams_.isWrapped,
+            withdrawParams_.signatures
+        );
+
+        _approveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
+
+        bytes memory swapCallData_ = _buildSwapCallData(
+            swapParams_.path,
+            withdrawParams_.amount,
+            swapParams_.minDestinationAmount,
+            swapParams_.swapDeadline,
+            isDestinationTokenNative_
+        );
+
+        (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
+
+        if (!success_) {
+            _handleCrossChainDepositFallback(
+                sourceToken_,
+                withdrawParams_.amount,
+                fallbackDepositParams_
+            );
+
+            return (false, 0);
+        }
+
+        uint256[] memory amounts_ = abi.decode(returndata_, (uint256[]));
+
+        return (true, amounts_[amounts_.length - 1]);
+    }
+
     function _handleLocalTransfer(
-        string calldata receiverStr_,
+        string memory receiverStr_,
         address destinationToken_,
         uint256 amount_,
         bool isDestinationTokenNative_
@@ -146,58 +274,6 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         }
     }
 
-    function _withdrawAndSwap(
-        WithdrawParams calldata withdrawParams_,
-        SwapParams calldata swapParams_,
-        DepositParams calldata fallbackDepositParams_,
-        bool isDestinationTokenNative_
-    ) internal returns (bool, uint256[] memory) {
-        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
-
-        address sourceToken_ = swapParams_.path[0];
-
-        bridge.withdrawERC20(
-            sourceToken_,
-            withdrawParams_.amount,
-            address(this),
-            withdrawParams_.txHash,
-            withdrawParams_.txNonce,
-            withdrawParams_.isWrapped,
-            withdrawParams_.signatures
-        );
-
-        _approveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
-
-        bytes memory swapCallData_ = _buildSwapCallData(
-            swapParams_.path,
-            withdrawParams_.amount,
-            swapParams_.minDestinationAmount,
-            swapParams_.swapDeadline,
-            isDestinationTokenNative_
-        );
-
-        (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
-
-        if (!success_) {
-            _handleCrossChainDepositFallback(
-                sourceToken_,
-                withdrawParams_.amount,
-                fallbackDepositParams_
-            );
-
-            return (false, new uint256[](0));
-        }
-
-        return (true, abi.decode(returndata_, (uint256[])));
-    }
-
-    function _approveERC20(address tokenAddress_, address spender_, uint256 amount_) internal {
-        IERC20 token_ = IERC20(tokenAddress_);
-
-        token_.safeApprove(spender_, 0);
-        token_.safeApprove(spender_, amount_);
-    }
-
     function _handleCrossChainDepositFallback(
         address sourceToken_,
         uint256 amount_,
@@ -222,6 +298,12 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
             fallbackParams_.isWrapped,
             fallbackParams_.referralId
         );
+    }
+
+    function _approveERC20(address tokenAddress_, address spender_, uint256 amount_) internal {
+        IERC20 token_ = IERC20(tokenAddress_);
+        token_.safeApprove(spender_, 0);
+        token_.safeApprove(spender_, amount_);
     }
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
