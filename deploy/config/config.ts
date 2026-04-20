@@ -35,5 +35,18 @@ function validateConfig(config: DeployConfig): DeployConfig {
     throw new Error("Invalid bridge signers addresses");
   }
 
+  if (config.uniswapV2Router == "0x0000000000000000000000000000000000000000") {
+    throw new Error("Invalid uniswapV2Router address");
+  }
+
+  if (config.swapperOperators.length == 0) {
+    throw new Error("Invalid swapper operators addresses");
+  }
+  for (const operator of config.swapperOperators) {
+    if (operator == "0x0000000000000000000000000000000000000000") {
+      throw new Error("Invalid swapper operator address");
+    }
+  }
+
   return config;
 }
