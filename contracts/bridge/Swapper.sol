@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "../utils/Strings.sol";
 
@@ -12,7 +13,12 @@ import "../interfaces/bridge/IBridge.sol";
 import "../interfaces/bridge/ISwapper.sol";
 import "../interfaces/uniswap-v2/IUniswapV2Router.sol";
 
-contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeable {
+contract Swapper is
+    ISwapper,
+    AccessControlEnumerableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable
+{
     using Address for address payable;
     using Strings for string;
     using SafeERC20 for IERC20;
@@ -30,6 +36,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         address[] calldata operators_
     ) external initializer {
         __AccessControlEnumerable_init();
+        __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
@@ -54,7 +61,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         DepositParams calldata destinationDepositParams_,
         bool isSourceTokenNative_,
         bool isDestinationTokenNative_
-    ) external payable {
+    ) external payable nonReentrant {
         uint256 destinationAmount_ = _transferAndSwap(
             amountIn_,
             swapParams_,
@@ -76,7 +83,7 @@ contract Swapper is ISwapper, AccessControlEnumerableUpgradeable, UUPSUpgradeabl
         DepositParams calldata destinationDepositParams_,
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
-    ) external onlyRole(OPERATOR_ROLE) {
+    ) external onlyRole(OPERATOR_ROLE) nonReentrant {
         (bool swapSuccess_, uint256 destinationAmount_) = _withdrawAndSwap(
             withdrawParams_,
             swapParams_,

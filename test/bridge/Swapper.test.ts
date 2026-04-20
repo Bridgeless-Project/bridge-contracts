@@ -142,7 +142,7 @@ describe("Swapper", () => {
       );
     });
 
-    it("only swap role should call these functions", async () => {
+    it("only operator role should call these functions", async () => {
       await expect(
         swapper
           .connect(SECOND)
@@ -639,6 +639,33 @@ describe("Swapper", () => {
         ),
       ).to.be.rejectedWith("Swapper: path length is less than 2");
     });
+
+    it("should block reentrancy", async () => {
+      const isSourceTokenNative = false;
+      const isDestinationTokenNative = true;
+
+      const ReentrantMock = await ethers.getContractFactory("ReentrantMock");
+      const reentrantMock = await ReentrantMock.deploy(
+        await swapper.getAddress(),
+        swapper.interface.encodeFunctionData("transferSwapAndRoute", [
+          amountIn,
+          { ...getDefaultSwapParams(), path: [] },
+          getDefaultDepositParams(),
+          isSourceTokenNative,
+          isDestinationTokenNative,
+        ]),
+      );
+
+      await expect(
+        swapper.transferSwapAndRoute(
+          amountIn,
+          { ...getDefaultSwapParams(), path: [await reentrantMock.getAddress(), await erc20_1.getAddress()] },
+          getDefaultDepositParams(),
+          isSourceTokenNative,
+          isDestinationTokenNative,
+        ),
+      ).to.be.rejectedWith("ReentrantMock: reentry call failed");
+    });
   });
 
   describe("withdrawSwapAndRoute", () => {
@@ -916,6 +943,35 @@ describe("Swapper", () => {
           true,
         ),
       ).to.be.rejectedWith("Swapper: path length is less than 2");
+    });
+
+    it("should block reentrancy", async () => {
+      const ReentrantMock = await ethers.getContractFactory("ReentrantMock");
+      const reentrantMock = await ReentrantMock.deploy(
+        await swapper.getAddress(),
+        swapper.interface.encodeFunctionData("withdrawSwapAndRoute", [
+          await getDefaultWithdrawParams(),
+          { ...getDefaultSwapParams(), path: [] },
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
+          false,
+        ]),
+      );
+
+      await swapper.grantRole(await swapper.OPERATOR_ROLE(), reentrantMock);
+
+      await expect(
+        swapper.withdrawSwapAndRoute(
+          await getDefaultWithdrawParams(swapper, reentrantMock as any),
+          {
+            ...getDefaultSwapParams(),
+            path: [await reentrantMock.getAddress(), await erc20_1.getAddress()],
+          },
+          getDefaultDepositParams(),
+          getDefaultFallbackDepositParams(),
+          false,
+        ),
+      ).to.be.rejectedWith("ReentrantMock: reentry call failed");
     });
   });
 });
