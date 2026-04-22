@@ -7,13 +7,20 @@ import { getConfig } from "../config/config";
 export = async (deployer: Deployer) => {
   const config = await getConfig();
 
-  const bridge = await deployer.deployed(Bridge__factory, "Bridge proxy");
+  let bridgeAddress: string;
+  if (config.swapper.bridgeAddress) {
+    bridgeAddress = config.swapper.bridgeAddress;
+  } else {
+    const bridge = await deployer.deployed(Bridge__factory, "Bridge proxy");
+
+    bridgeAddress = await bridge.getAddress();
+  }
 
   const swapperInitData = Swapper__factory.createInterface().encodeFunctionData("__Swapper_init", [
-    config.networkName,
-    await bridge.getAddress(),
-    config.uniswapV2Router,
-    config.swapperOperators,
+    config.swapper.networkName,
+    bridgeAddress,
+    config.swapper.uniswapV2Router,
+    config.swapper.operators,
   ]);
 
   const swapper = await deployer.deployERC1967Proxy(Swapper__factory, swapperInitData, { name: "Swapper" });
