@@ -101,6 +101,10 @@ contract Swapper is
         );
     }
 
+    function isCurrentNetwork(string calldata network_) public view returns (bool) {
+        return keccak256(abi.encodePacked(network_)) == keccak256(abi.encodePacked(network));
+    }
+
     function _routeDestination(
         uint256 destinationAmount_,
         address destinationToken_,
@@ -150,7 +154,7 @@ contract Swapper is
 
             IERC20(sourceToken_).safeTransferFrom(msg.sender, address(this), amountIn_);
 
-            _approveERC20(sourceToken_, uniswapV2Router, amountIn_);
+            _safeApproveERC20(sourceToken_, uniswapV2Router, amountIn_);
 
             if (isDestinationTokenNative_) {
                 amounts_ = IUniswapV2Router(uniswapV2Router).swapExactTokensForETH(
@@ -194,7 +198,7 @@ contract Swapper is
             withdrawParams_.signatures
         );
 
-        _approveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
+        _safeApproveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
 
         bytes memory swapCallData_ = _buildSwapCallData(
             swapParams_.path,
@@ -260,7 +264,7 @@ contract Swapper is
                 params_.referralId
             );
         } else {
-            _approveERC20(destinationToken_, address(bridge), amount_);
+            _safeApproveERC20(destinationToken_, address(bridge), amount_);
             bridge.depositERC20(
                 destinationToken_,
                 amount_,
@@ -286,7 +290,7 @@ contract Swapper is
         uint256 amount_,
         DepositParams calldata fallbackParams_
     ) internal {
-        _approveERC20(sourceToken_, address(bridge), amount_);
+        _safeApproveERC20(sourceToken_, address(bridge), amount_);
 
         bridge.depositERC20(
             sourceToken_,
@@ -307,14 +311,10 @@ contract Swapper is
         );
     }
 
-    function _approveERC20(address tokenAddress_, address spender_, uint256 amount_) internal {
+    function _safeApproveERC20(address tokenAddress_, address spender_, uint256 amount_) internal {
         IERC20 token_ = IERC20(tokenAddress_);
         token_.safeApprove(spender_, 0);
         token_.safeApprove(spender_, amount_);
-    }
-
-    function isCurrentNetwork(string calldata network_) public view returns (bool) {
-        return keccak256(abi.encodePacked(network_)) == keccak256(abi.encodePacked(network));
     }
 
     function _buildSwapCallData(

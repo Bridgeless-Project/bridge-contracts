@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
+import "./IBridge.sol";
+
 /**
  * @notice The Swapper contract
  *
@@ -52,6 +54,15 @@ interface ISwapper {
         uint16 referralId;
     }
 
+    /**
+     * @notice Emitted when ERC20 assets are deposited back into the Bridge after a swap fails
+     * @param token The token that was deposited
+     * @param amount The amount of tokens that were deposited
+     * @param receiver The receiver of the tokens
+     * @param network The destination network of the tokens
+     * @param isWrapped Whether the tokens are wrapped
+     * @param referralId The referral id
+     */
     event CrossChainERC20FallbackDeposited(
         address token,
         uint256 amount,
@@ -61,10 +72,28 @@ interface ISwapper {
         uint16 referralId
     );
 
+    /**
+     * @notice Emitted when native assets are transferred locally
+     * @param amount The amount of assets that were transferred
+     * @param receiver The receiver of the assets
+     */
     event LocalNativeTransferred(uint256 amount, address receiver);
 
+    /**
+     * @notice Emitted when ERC20 assets are transferred locally
+     * @param amount The amount of assets that were transferred
+     * @param receiver The receiver of the assets
+     * @param token The token that was transferred
+     */
     event LocalERC20Transferred(uint256 amount, address receiver, address token);
 
+    /**
+     * @notice Emitted when native assets are deposited into the Bridge
+     * @param amount The amount of assets that were deposited
+     * @param receiver The receiver of the assets
+     * @param network The destination network of the assets
+     * @param referralId The referral id
+     */
     event CrossChainNativeDeposited(
         uint256 amount,
         string receiver,
@@ -72,6 +101,15 @@ interface ISwapper {
         uint16 referralId
     );
 
+    /**
+     * @notice Emitted when ERC20 assets are deposited into the Bridge
+     * @param token The token that was deposited
+     * @param amount The amount of tokens that were deposited
+     * @param receiver The receiver of the tokens
+     * @param network The destination network of the tokens
+     * @param isWrapped Whether the tokens are wrapped
+     * @param referralId The referral id
+     */
     event CrossChainERC20Deposited(
         address token,
         uint256 amount,
@@ -112,4 +150,29 @@ interface ISwapper {
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
     ) external;
+
+    /**
+     * @notice Returns whether the given network is the current network
+     * @param network_ The network to check
+     * @return True if the given network is the current network, false otherwise
+     */
+    function isCurrentNetwork(string calldata network_) external view returns (bool);
+
+    /**
+     * @notice Returns the current network
+     * @return The current network
+     */
+    function network() external view returns (string memory);
+
+    /**
+     * @notice Returns the bridge contract
+     * @return The bridge contract
+     */
+    function bridge() external view returns (IBridge);
+
+    /**
+     * @notice Returns the Uniswap V2 router contract
+     * @return The Uniswap V2 router contract
+     */
+    function uniswapV2Router() external view returns (address);
 }
