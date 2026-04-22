@@ -15,7 +15,7 @@ abstract contract NativeHandler is INativeHandler {
     }
 
     function depositNativeAndSwap(
-        address destinationToken_,
+        string calldata destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,
         string calldata receiver_,
@@ -23,7 +23,6 @@ abstract contract NativeHandler is INativeHandler {
         uint16 referralId_
     ) external payable override {
         require(msg.value > 0, "NativeHandler: zero value");
-        require(destinationToken_ != address(0), "NativeHandler: zero destination token");
         require(minDestinationAmount_ > 0, "NativeHandler: min destination amount is zero");
 
         emit BridgedNativeAndSwapped(

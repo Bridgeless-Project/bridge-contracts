@@ -25,7 +25,7 @@ abstract contract ERC20Handler is IERC20Handler {
     function depositERC20AndSwap(
         address token_,
         uint256 amount_,
-        address destinationToken_,
+        string calldata destinationToken_,
         uint256 minDestinationAmount_,
         uint256 swapDeadline_,
         string calldata receiver_,
@@ -33,7 +33,6 @@ abstract contract ERC20Handler is IERC20Handler {
         bool isWrapped_,
         uint16 referralId_
     ) external override {
-        require(destinationToken_ != address(0), "ERC20Handler: zero destination token");
         require(minDestinationAmount_ > 0, "ERC20Handler: min destination amount is zero");
 
         _depositERC20(token_, amount_, isWrapped_);

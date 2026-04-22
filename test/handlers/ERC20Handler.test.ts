@@ -121,7 +121,7 @@ describe("ERC20Handler", () => {
       await handler.depositERC20AndSwap(
         await token.getAddress(),
         expectedAmount,
-        destinationToken,
+        await destinationToken.getAddress(),
         expectedDestinationAmount,
         swapDeadline,
         "receiver",
@@ -138,7 +138,7 @@ describe("ERC20Handler", () => {
       expect(depositEvent.eventName).to.be.equal("DepositedERC20AndSwapped");
       expect(depositEvent.args.token).to.be.equal(await token.getAddress());
       expect(depositEvent.args.amount).to.be.equal(expectedAmount);
-      expect(depositEvent.args.destinationToken).to.be.equal(destinationToken);
+      expect(depositEvent.args.destinationToken).to.be.equal(await destinationToken.getAddress());
       expect(depositEvent.args.minDestinationAmount).to.be.equal(expectedDestinationAmount);
       expect(depositEvent.args.swapDeadline).to.be.equal(swapDeadline);
       expect(depositEvent.args.receiver).to.be.equal("receiver");
@@ -152,7 +152,7 @@ describe("ERC20Handler", () => {
       const tx = await handler.depositERC20AndSwap(
         await token.getAddress(),
         expectedAmount,
-        destinationToken,
+        await destinationToken.getAddress(),
         expectedDestinationAmount,
         swapDeadline,
         "receiver",
@@ -165,7 +165,7 @@ describe("ERC20Handler", () => {
         .withArgs(
           await token.getAddress(),
           expectedAmount,
-          destinationToken,
+          await destinationToken.getAddress(),
           expectedDestinationAmount,
           swapDeadline,
           "receiver",
@@ -184,7 +184,7 @@ describe("ERC20Handler", () => {
         handler.depositERC20AndSwap(
           await token.getAddress(),
           expectedAmount,
-          destinationToken,
+          await destinationToken.getAddress(),
           expectedDestinationAmount,
           swapDeadline,
           "receiver",
@@ -201,7 +201,7 @@ describe("ERC20Handler", () => {
       await handler.depositERC20AndSwap(
         await token.getAddress(),
         expectedAmount,
-        destinationToken,
+        await destinationToken.getAddress(),
         expectedDestinationAmount,
         swapDeadline,
         "receiver",
@@ -222,7 +222,7 @@ describe("ERC20Handler", () => {
         handler.depositERC20AndSwap(
           await token.getAddress(),
           wei("0"),
-          destinationToken,
+          await destinationToken.getAddress(),
           expectedDestinationAmount,
           swapDeadline,
           "receiver",
@@ -238,7 +238,7 @@ describe("ERC20Handler", () => {
         handler.depositERC20AndSwap(
           ethers.ZeroAddress,
           wei("1"),
-          destinationToken,
+          await destinationToken.getAddress(),
           expectedDestinationAmount,
           swapDeadline,
           "receiver",
@@ -249,7 +249,7 @@ describe("ERC20Handler", () => {
       ).to.be.rejectedWith("ERC20Handler: zero token");
     });
 
-    it("should revert when destination token address is 0", async () => {
+    it("should not revert when destination token address is 0", async () => {
       await expect(
         handler.depositERC20AndSwap(
           await token.getAddress(),
@@ -262,7 +262,7 @@ describe("ERC20Handler", () => {
           false,
           referralId,
         ),
-      ).to.be.rejectedWith("ERC20Handler: zero destination token");
+      ).to.not.be.reverted;
     });
 
     it("should revert when min destination amount is 0", async () => {
@@ -270,7 +270,7 @@ describe("ERC20Handler", () => {
         handler.depositERC20AndSwap(
           await token.getAddress(),
           wei("1"),
-          destinationToken,
+          await destinationToken.getAddress(),
           wei("0"),
           swapDeadline,
           "receiver",
