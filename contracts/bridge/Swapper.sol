@@ -19,7 +19,6 @@ contract Swapper is
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable
 {
-    using Address for address;
     using Address for address payable;
     using Strings for string;
     using SafeERC20 for IERC20;
