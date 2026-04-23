@@ -36,12 +36,14 @@ interface ISwapper {
      * @param minDestinationAmount The minimum amount of assets to receive after swapping
      * @param swapDeadline The deadline of the swap transaction
      * @param path The path of the swap
+     * @param isDestinationTokenNative Whether the destination token is native
      */
     struct SwapParams {
         uint256 amountIn;
         uint256 minDestinationAmount;
         uint256 swapDeadline;
         address[] path;
+        bool isDestinationTokenNative;
     }
 
     /**
@@ -127,24 +129,20 @@ interface ISwapper {
      * @notice Transfers assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
      * @param destinationDepositParams_ The parameters for depositing destination assets
-     * @param isDestinationTokenNative_ Whether the destination token is native
      */
     function swapAndRoute(
         SwapParams calldata swapParams_,
-        DepositParams calldata destinationDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_
     ) external;
 
     /**
      * @notice Accepts native assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
      * @param destinationDepositParams_ The parameters for depositing destination assets
-     * @param isDestinationTokenNative_ Whether the destination token is native
      */
     function swapETHAndRoute(
         SwapParams calldata swapParams_,
-        DepositParams calldata destinationDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_
     ) external payable;
 
     /**
@@ -153,14 +151,12 @@ interface ISwapper {
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
      * @param destinationDepositParams_ The parameters for depositing destination assets
      * @param fallbackDepositParams_ The parameters for depositing assets back into the Bridge if the swap fails
-     * @param isDestinationTokenNative_ Whether the destination token is native
      */
     function withdrawSwapAndRoute(
         WithdrawParams calldata withdrawParams_,
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,
-        DepositParams calldata fallbackDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata fallbackDepositParams_
     ) external;
 
     /**

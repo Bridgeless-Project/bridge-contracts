@@ -63,8 +63,7 @@ contract Swapper is
 
     function swapAndRoute(
         SwapParams calldata swapParams_,
-        DepositParams calldata destinationDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_
     ) external nonReentrant validateSwapParams(swapParams_) {
         IERC20(swapParams_.path[0]).safeTransferFrom(
             msg.sender,
@@ -72,42 +71,29 @@ contract Swapper is
             swapParams_.amountIn
         );
 
-        _swapAndRoute(swapParams_, destinationDepositParams_, isDestinationTokenNative_);
+        _swapAndRoute(swapParams_, destinationDepositParams_);
     }
 
     function swapETHAndRoute(
         SwapParams calldata swapParams_,
-        DepositParams calldata destinationDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_
     ) external payable nonReentrant validateSwapParams(swapParams_) {
-        require(msg.value == swapParams_.amountIn, "Swapper: msg.value does not match amountIn");
-        require(!isDestinationTokenNative_, "Swapper: native-to-native swap not supported");
+        _validateETHSwapParams(swapParams_);
 
-        _swapAndRoute(swapParams_, destinationDepositParams_, isDestinationTokenNative_);
+        _swapAndRoute(swapParams_, destinationDepositParams_);
     }
 
     function withdrawSwapAndRoute(
         WithdrawParams calldata withdrawParams_,
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,
-        DepositParams calldata fallbackDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata fallbackDepositParams_
     ) external onlyRole(OPERATOR_ROLE) nonReentrant validateSwapParams(swapParams_) {
-        (bool swapSuccess_, uint256 destinationAmount_) = _withdrawAndSwap(
-            withdrawParams_,
-            swapParams_,
-            fallbackDepositParams_,
-            isDestinationTokenNative_
-        );
+        _validateWithdrawParams(withdrawParams_, swapParams_);
 
-        if (!swapSuccess_) return;
+        _withdrawFromBridge(withdrawParams_);
 
-        _routeDestination(
-            destinationAmount_,
-            swapParams_.path[swapParams_.path.length - 1],
-            destinationDepositParams_,
-            isDestinationTokenNative_
-        );
+        _swapWithFallbackAndRoute(swapParams_, destinationDepositParams_, fallbackDepositParams_);
     }
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
@@ -116,48 +102,55 @@ contract Swapper is
 
     function _swapAndRoute(
         SwapParams calldata swapParams_,
-        DepositParams calldata destinationDepositParams_,
-        bool isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_
     ) internal {
-        uint256 destinationAmount_ = _swap(swapParams_, isDestinationTokenNative_);
+        uint256 destinationAmount_ = _swap(swapParams_);
 
         _routeDestination(
             destinationAmount_,
             swapParams_.path[swapParams_.path.length - 1],
             destinationDepositParams_,
-            isDestinationTokenNative_
+            swapParams_.isDestinationTokenNative
         );
     }
 
-    function _swap(
+    function _swapWithFallbackAndRoute(
         SwapParams calldata swapParams_,
-        bool isDestinationTokenNative_
-    ) internal returns (uint256) {
-        (bool swapSuccess_, uint256 destinationAmount_) = _trySwap(
-            swapParams_,
-            isDestinationTokenNative_
+        DepositParams calldata destinationDepositParams_,
+        DepositParams calldata fallbackDepositParams_
+    ) internal {
+        (bool swapSuccess_, uint256 destinationAmount_) = _trySwap(swapParams_);
+
+        if (!swapSuccess_) {
+            _handleCrossChainDepositFallback(
+                swapParams_.path[0],
+                swapParams_.amountIn,
+                fallbackDepositParams_
+            );
+            return;
+        }
+
+        _routeDestination(
+            destinationAmount_,
+            swapParams_.path[swapParams_.path.length - 1],
+            destinationDepositParams_,
+            swapParams_.isDestinationTokenNative
         );
+    }
+
+    function _swap(SwapParams calldata swapParams_) internal returns (uint256) {
+        (bool swapSuccess_, uint256 destinationAmount_) = _trySwap(swapParams_);
         require(swapSuccess_, "Swapper: swap failed");
 
         return destinationAmount_;
     }
 
-    function _trySwap(
-        SwapParams calldata swapParams_,
-        bool isDestinationTokenNative_
-    ) internal returns (bool, uint256) {
-        if (msg.value == 0) {
+    function _trySwap(SwapParams calldata swapParams_) internal returns (bool, uint256) {
+        if (!_isETHSwap()) {
             _safeApproveERC20(swapParams_.path[0], uniswapV2Router, swapParams_.amountIn);
         }
 
-        bytes memory swapCallData_ = _buildSwapCallData(
-            swapParams_.amountIn,
-            swapParams_.minDestinationAmount,
-            swapParams_.path,
-            swapParams_.swapDeadline,
-            isDestinationTokenNative_
-        );
-
+        bytes memory swapCallData_ = _buildSwapCallData(swapParams_);
         (bool success_, bytes memory returndata_) = uniswapV2Router.call{value: msg.value}(
             swapCallData_
         );
@@ -190,27 +183,6 @@ contract Swapper is
                 destinationToken_,
                 destinationAmount_,
                 isDestinationTokenNative_
-            );
-        }
-    }
-
-    function _withdrawAndSwap(
-        WithdrawParams calldata withdrawParams_,
-        SwapParams calldata swapParams_,
-        DepositParams calldata fallbackDepositParams_,
-        bool isDestinationTokenNative_
-    ) internal returns (bool swapSuccess_, uint256 destinationAmount_) {
-        _validateWithdrawParams(withdrawParams_, swapParams_);
-
-        _withdrawFromBridge(withdrawParams_);
-
-        (swapSuccess_, destinationAmount_) = _trySwap(swapParams_, isDestinationTokenNative_);
-
-        if (!swapSuccess_) {
-            _handleCrossChainDepositFallback(
-                withdrawParams_.token,
-                withdrawParams_.amount,
-                fallbackDepositParams_
             );
         }
     }
@@ -319,44 +291,52 @@ contract Swapper is
         );
     }
 
+    function _validateETHSwapParams(SwapParams calldata swapParams_) internal {
+        require(msg.value == swapParams_.amountIn, "Swapper: msg.value does not match amountIn");
+        require(
+            !swapParams_.isDestinationTokenNative,
+            "Swapper: native-to-native swap not supported"
+        );
+    }
+
+    function _isETHSwap() internal view returns (bool) {
+        return msg.value > 0;
+    }
+
     function _buildSwapCallData(
-        uint256 amount_,
-        uint256 minDestinationAmount_,
-        address[] calldata path_,
-        uint256 swapDeadline_,
-        bool isDestinationTokenNative_
+        SwapParams calldata swapParams_
     ) internal view returns (bytes memory) {
-        if (msg.value > 0) {
+        if (_isETHSwap()) {
             return
                 abi.encodeWithSelector(
                     IUniswapV2Router.swapExactETHForTokens.selector,
-                    minDestinationAmount_,
-                    path_,
+                    swapParams_.minDestinationAmount,
+                    swapParams_.path,
                     address(this),
-                    swapDeadline_
+                    swapParams_.swapDeadline
                 );
         }
 
-        if (isDestinationTokenNative_) {
+        if (swapParams_.isDestinationTokenNative) {
             return
                 abi.encodeWithSelector(
                     IUniswapV2Router.swapExactTokensForETH.selector,
-                    amount_,
-                    minDestinationAmount_,
-                    path_,
+                    swapParams_.amountIn,
+                    swapParams_.minDestinationAmount,
+                    swapParams_.path,
                     address(this),
-                    swapDeadline_
+                    swapParams_.swapDeadline
                 );
         }
 
         return
             abi.encodeWithSelector(
                 IUniswapV2Router.swapExactTokensForTokens.selector,
-                amount_,
-                minDestinationAmount_,
-                path_,
+                swapParams_.amountIn,
+                swapParams_.minDestinationAmount,
+                swapParams_.path,
                 address(this),
-                swapDeadline_
+                swapParams_.swapDeadline
             );
     }
 
