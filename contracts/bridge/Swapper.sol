@@ -19,6 +19,7 @@ contract Swapper is
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable
 {
+    using Address for address;
     using Address for address payable;
     using Strings for string;
     using SafeERC20 for IERC20;
@@ -28,6 +29,11 @@ contract Swapper is
     string public network;
     IBridge public bridge;
     address public uniswapV2Router;
+
+    modifier validateSwapParams(SwapParams calldata swapParams_) {
+        _validateSwapParams(swapParams_);
+        _;
+    }
 
     function __Swapper_init(
         string calldata network_,
@@ -55,26 +61,29 @@ contract Swapper is
         address newImplementation
     ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
-    function transferSwapAndRoute(
-        uint256 amountIn_,
+    function swapAndRoute(
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,
-        bool isSourceTokenNative_,
         bool isDestinationTokenNative_
-    ) external payable nonReentrant {
-        uint256 destinationAmount_ = _transferAndSwap(
-            amountIn_,
-            swapParams_,
-            isSourceTokenNative_,
-            isDestinationTokenNative_
+    ) external nonReentrant validateSwapParams(swapParams_) {
+        IERC20(swapParams_.path[0]).safeTransferFrom(
+            msg.sender,
+            address(this),
+            swapParams_.amountIn
         );
 
-        _routeDestination(
-            destinationAmount_,
-            swapParams_.path[swapParams_.path.length - 1],
-            destinationDepositParams_,
-            isDestinationTokenNative_
-        );
+        _swapAndRoute(swapParams_, destinationDepositParams_, isDestinationTokenNative_);
+    }
+
+    function swapETHAndRoute(
+        SwapParams calldata swapParams_,
+        DepositParams calldata destinationDepositParams_,
+        bool isDestinationTokenNative_
+    ) external payable nonReentrant validateSwapParams(swapParams_) {
+        require(msg.value == swapParams_.amountIn, "Swapper: msg.value does not match amountIn");
+        require(!isDestinationTokenNative_, "Swapper: native-to-native swap not supported");
+
+        _swapAndRoute(swapParams_, destinationDepositParams_, isDestinationTokenNative_);
     }
 
     function withdrawSwapAndRoute(
@@ -83,7 +92,7 @@ contract Swapper is
         DepositParams calldata destinationDepositParams_,
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
-    ) external onlyRole(OPERATOR_ROLE) nonReentrant {
+    ) external onlyRole(OPERATOR_ROLE) nonReentrant validateSwapParams(swapParams_) {
         (bool swapSuccess_, uint256 destinationAmount_) = _withdrawAndSwap(
             withdrawParams_,
             swapParams_,
@@ -103,6 +112,63 @@ contract Swapper is
 
     function isCurrentNetwork(string calldata network_) public view returns (bool) {
         return keccak256(abi.encodePacked(network_)) == keccak256(abi.encodePacked(network));
+    }
+
+    function _swapAndRoute(
+        SwapParams calldata swapParams_,
+        DepositParams calldata destinationDepositParams_,
+        bool isDestinationTokenNative_
+    ) internal {
+        uint256 destinationAmount_ = _swap(swapParams_, isDestinationTokenNative_);
+
+        _routeDestination(
+            destinationAmount_,
+            swapParams_.path[swapParams_.path.length - 1],
+            destinationDepositParams_,
+            isDestinationTokenNative_
+        );
+    }
+
+    function _swap(
+        SwapParams calldata swapParams_,
+        bool isDestinationTokenNative_
+    ) internal returns (uint256) {
+        (bool swapSuccess_, uint256 destinationAmount_) = _trySwap(
+            swapParams_,
+            isDestinationTokenNative_
+        );
+        require(swapSuccess_, "Swapper: swap failed");
+
+        return destinationAmount_;
+    }
+
+    function _trySwap(
+        SwapParams calldata swapParams_,
+        bool isDestinationTokenNative_
+    ) internal returns (bool, uint256) {
+        if (msg.value == 0) {
+            _safeApproveERC20(swapParams_.path[0], uniswapV2Router, swapParams_.amountIn);
+        }
+
+        bytes memory swapCallData_ = _buildSwapCallData(
+            swapParams_.amountIn,
+            swapParams_.minDestinationAmount,
+            swapParams_.path,
+            swapParams_.swapDeadline,
+            isDestinationTokenNative_
+        );
+
+        (bool success_, bytes memory returndata_) = uniswapV2Router.call{value: msg.value}(
+            swapCallData_
+        );
+
+        if (!success_) {
+            return (false, 0);
+        }
+
+        uint256[] memory amounts_ = abi.decode(returndata_, (uint256[]));
+
+        return (true, amounts_[amounts_.length - 1]);
     }
 
     function _routeDestination(
@@ -128,101 +194,25 @@ contract Swapper is
         }
     }
 
-    function _transferAndSwap(
-        uint256 amountIn_,
-        SwapParams calldata swapParams_,
-        bool isSourceTokenNative_,
-        bool isDestinationTokenNative_
-    ) internal returns (uint256) {
-        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
-
-        uint256[] memory amounts_;
-        if (isSourceTokenNative_) {
-            require(msg.value == amountIn_, "Swapper: msg.value does not match amountIn_");
-            require(!isDestinationTokenNative_, "Swapper: native-to-native swap not supported");
-
-            amounts_ = IUniswapV2Router(uniswapV2Router).swapExactETHForTokens{value: amountIn_}(
-                swapParams_.minDestinationAmount,
-                swapParams_.path,
-                address(this),
-                swapParams_.swapDeadline
-            );
-        } else {
-            require(msg.value == 0, "Swapper: msg.value must be 0 for ERC20 source");
-
-            address sourceToken_ = swapParams_.path[0];
-
-            IERC20(sourceToken_).safeTransferFrom(msg.sender, address(this), amountIn_);
-
-            _safeApproveERC20(sourceToken_, uniswapV2Router, amountIn_);
-
-            if (isDestinationTokenNative_) {
-                amounts_ = IUniswapV2Router(uniswapV2Router).swapExactTokensForETH(
-                    amountIn_,
-                    swapParams_.minDestinationAmount,
-                    swapParams_.path,
-                    address(this),
-                    swapParams_.swapDeadline
-                );
-            } else {
-                amounts_ = IUniswapV2Router(uniswapV2Router).swapExactTokensForTokens(
-                    amountIn_,
-                    swapParams_.minDestinationAmount,
-                    swapParams_.path,
-                    address(this),
-                    swapParams_.swapDeadline
-                );
-            }
-        }
-
-        return amounts_[amounts_.length - 1];
-    }
-
     function _withdrawAndSwap(
         WithdrawParams calldata withdrawParams_,
         SwapParams calldata swapParams_,
         DepositParams calldata fallbackDepositParams_,
         bool isDestinationTokenNative_
-    ) internal returns (bool, uint256) {
-        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
+    ) internal returns (bool swapSuccess_, uint256 destinationAmount_) {
+        _validateWithdrawParams(withdrawParams_, swapParams_);
 
-        address sourceToken_ = swapParams_.path[0];
+        _withdrawFromBridge(withdrawParams_);
 
-        bridge.withdrawERC20(
-            sourceToken_,
-            withdrawParams_.amount,
-            address(this),
-            withdrawParams_.txHash,
-            withdrawParams_.txNonce,
-            withdrawParams_.isWrapped,
-            withdrawParams_.signatures
-        );
+        (swapSuccess_, destinationAmount_) = _trySwap(swapParams_, isDestinationTokenNative_);
 
-        _safeApproveERC20(sourceToken_, uniswapV2Router, withdrawParams_.amount);
-
-        bytes memory swapCallData_ = _buildSwapCallData(
-            swapParams_.path,
-            withdrawParams_.amount,
-            swapParams_.minDestinationAmount,
-            swapParams_.swapDeadline,
-            isDestinationTokenNative_
-        );
-
-        (bool success_, bytes memory returndata_) = uniswapV2Router.call(swapCallData_);
-
-        if (!success_) {
+        if (!swapSuccess_) {
             _handleCrossChainDepositFallback(
-                sourceToken_,
+                withdrawParams_.token,
                 withdrawParams_.amount,
                 fallbackDepositParams_
             );
-
-            return (false, 0);
         }
-
-        uint256[] memory amounts_ = abi.decode(returndata_, (uint256[]));
-
-        return (true, amounts_[amounts_.length - 1]);
     }
 
     function _handleLocalTransfer(
@@ -264,15 +254,7 @@ contract Swapper is
                 params_.referralId
             );
         } else {
-            _safeApproveERC20(destinationToken_, address(bridge), amount_);
-            bridge.depositERC20(
-                destinationToken_,
-                amount_,
-                params_.receiver,
-                params_.network,
-                params_.isWrapped,
-                params_.referralId
-            );
+            _depositToBridge(destinationToken_, amount_, params_);
 
             emit CrossChainERC20Deposited(
                 destinationToken_,
@@ -290,16 +272,7 @@ contract Swapper is
         uint256 amount_,
         DepositParams calldata fallbackParams_
     ) internal {
-        _safeApproveERC20(sourceToken_, address(bridge), amount_);
-
-        bridge.depositERC20(
-            sourceToken_,
-            amount_,
-            fallbackParams_.receiver,
-            fallbackParams_.network,
-            fallbackParams_.isWrapped,
-            fallbackParams_.referralId
-        );
+        _depositToBridge(sourceToken_, amount_, fallbackParams_);
 
         emit CrossChainERC20FallbackDeposited(
             sourceToken_,
@@ -317,23 +290,91 @@ contract Swapper is
         token_.safeApprove(spender_, amount_);
     }
 
+    function _withdrawFromBridge(WithdrawParams calldata withdrawParams_) internal {
+        bridge.withdrawERC20(
+            withdrawParams_.token,
+            withdrawParams_.amount,
+            address(this),
+            withdrawParams_.txHash,
+            withdrawParams_.txNonce,
+            withdrawParams_.isWrapped,
+            withdrawParams_.signatures
+        );
+    }
+
+    function _depositToBridge(
+        address token_,
+        uint256 amount_,
+        DepositParams calldata depositParams_
+    ) internal {
+        _safeApproveERC20(token_, address(bridge), amount_);
+
+        bridge.depositERC20(
+            token_,
+            amount_,
+            depositParams_.receiver,
+            depositParams_.network,
+            depositParams_.isWrapped,
+            depositParams_.referralId
+        );
+    }
+
     function _buildSwapCallData(
-        address[] calldata path_,
         uint256 amount_,
         uint256 minDestinationAmount_,
+        address[] calldata path_,
         uint256 swapDeadline_,
         bool isDestinationTokenNative_
     ) internal view returns (bytes memory) {
+        if (msg.value > 0) {
+            return
+                abi.encodeWithSelector(
+                    IUniswapV2Router.swapExactETHForTokens.selector,
+                    minDestinationAmount_,
+                    path_,
+                    address(this),
+                    swapDeadline_
+                );
+        }
+
+        if (isDestinationTokenNative_) {
+            return
+                abi.encodeWithSelector(
+                    IUniswapV2Router.swapExactTokensForETH.selector,
+                    amount_,
+                    minDestinationAmount_,
+                    path_,
+                    address(this),
+                    swapDeadline_
+                );
+        }
+
         return
             abi.encodeWithSelector(
-                isDestinationTokenNative_
-                    ? IUniswapV2Router(uniswapV2Router).swapExactTokensForETH.selector
-                    : IUniswapV2Router(uniswapV2Router).swapExactTokensForTokens.selector,
+                IUniswapV2Router.swapExactTokensForTokens.selector,
                 amount_,
                 minDestinationAmount_,
                 path_,
                 address(this),
                 swapDeadline_
             );
+    }
+
+    function _validateSwapParams(SwapParams calldata swapParams_) internal pure {
+        require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
+    }
+
+    function _validateWithdrawParams(
+        WithdrawParams calldata withdrawParams_,
+        SwapParams calldata swapParams_
+    ) internal pure {
+        require(
+            withdrawParams_.token == swapParams_.path[0],
+            "Swapper: withdraw token does not match swap path"
+        );
+        require(
+            withdrawParams_.amount == swapParams_.amountIn,
+            "Swapper: withdraw amount does not match swap amountIn"
+        );
     }
 }

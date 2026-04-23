@@ -14,6 +14,7 @@ import "./IBridge.sol";
 interface ISwapper {
     /**
      * @notice The parameters for withdrawing assets from the Bridge
+     * @param token The token to withdraw
      * @param amount The amount of assets to withdraw
      * @param txHash The hash of the transaction that withdrew the assets
      * @param txNonce The nonce of the transaction that withdrew the assets
@@ -21,6 +22,7 @@ interface ISwapper {
      * @param signatures The signatures of the signers that authorized the withdrawal
      */
     struct WithdrawParams {
+        address token;
         uint256 amount;
         bytes32 txHash;
         uint256 txNonce;
@@ -30,11 +32,13 @@ interface ISwapper {
 
     /**
      * @notice The parameters for swapping assets on the Uniswap V2 pool
+     * @param amountIn The amount of assets to swap
      * @param minDestinationAmount The minimum amount of assets to receive after swapping
      * @param swapDeadline The deadline of the swap transaction
      * @param path The path of the swap
      */
     struct SwapParams {
+        uint256 amountIn;
         uint256 minDestinationAmount;
         uint256 swapDeadline;
         address[] path;
@@ -121,17 +125,25 @@ interface ISwapper {
 
     /**
      * @notice Transfers assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
-     * @param amountIn_ The amount of assets to transfer
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
      * @param destinationDepositParams_ The parameters for depositing destination assets
-     * @param isSourceTokenNative_ Whether the source token is native
      * @param isDestinationTokenNative_ Whether the destination token is native
      */
-    function transferSwapAndRoute(
-        uint256 amountIn_,
+    function swapAndRoute(
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_,
-        bool isSourceTokenNative_,
+        bool isDestinationTokenNative_
+    ) external;
+
+    /**
+     * @notice Accepts native assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
+     * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
+     * @param destinationDepositParams_ The parameters for depositing destination assets
+     * @param isDestinationTokenNative_ Whether the destination token is native
+     */
+    function swapETHAndRoute(
+        SwapParams calldata swapParams_,
+        DepositParams calldata destinationDepositParams_,
         bool isDestinationTokenNative_
     ) external payable;
 
