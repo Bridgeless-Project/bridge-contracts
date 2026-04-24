@@ -80,6 +80,8 @@ abstract contract ERC20Handler is IERC20Handler {
         } else {
             erc20_.safeTransfer(receiver_, amount_);
         }
+
+        emit WithdrawnERC20(token_, amount_, receiver_, isWrapped_);
     }
 
     function getERC20SignHash(

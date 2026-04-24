@@ -26,4 +26,9 @@ export const deployConfig: DeployConfig = {
       decimals: 18n,
     },
   ],
+  swapper: {
+    networkName: "56",
+    uniswapV2Router: "0x0000000000000000000000000000000000000000",
+    operators: [],
+  },
 };

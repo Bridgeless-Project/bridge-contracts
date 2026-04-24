@@ -57,6 +57,8 @@ abstract contract ERC1155Handler is IERC1155Handler, ERC1155Holder {
         } else {
             erc1155_.safeTransferFrom(address(this), receiver_, tokenId_, amount_, "");
         }
+
+        emit WithdrawnERC1155(token_, tokenId_, amount_, receiver_, tokenURI_, isWrapped_);
     }
 
     function getERC1155SignHash(

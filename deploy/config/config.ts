@@ -11,6 +11,10 @@ export async function getConfig(): Promise<DeployConfig> {
     return validateConfig((await import("./sepolia")).deployConfig);
   }
 
+  if (hre.network.name == "bridgelessTest") {
+    return validateConfig((await import("./bridgelessTest")).deployConfig);
+  }
+
   if (hre.network.name == "bridgelessMainnet") {
     return validateConfig((await import("./bridgelessMainnet")).deployConfig);
   }
@@ -33,6 +37,27 @@ function validateConfig(config: DeployConfig): DeployConfig {
 
   if (config.bridgeSigners.length == 0) {
     throw new Error("Invalid bridge signers addresses");
+  }
+
+  if (!config.swapper) {
+    throw new Error("Invalid swapper config");
+  }
+
+  if (config.swapper.bridgeAddress && config.swapper.bridgeAddress == "0x0000000000000000000000000000000000000000") {
+    throw new Error("Invalid bridge address");
+  }
+
+  if (config.swapper.networkName == "") {
+    throw new Error("Invalid swapper network name");
+  }
+
+  if (config.swapper.operators.length == 0) {
+    throw new Error("Invalid swapper operators addresses");
+  }
+  for (const operator of config.swapper.operators) {
+    if (operator == "0x0000000000000000000000000000000000000000") {
+      throw new Error("Invalid swapper operator address");
+    }
   }
 
   return config;

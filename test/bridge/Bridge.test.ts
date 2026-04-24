@@ -7,7 +7,13 @@ import { time } from "@nomicfoundation/hardhat-network-helpers";
 import { wei } from "@scripts";
 import { getSignature, Reverter } from "@test-helpers";
 
-import { ERC20MintableBurnable, Bridge, ERC721MintableBurnable, ERC1155MintableBurnable } from "@ethers-v6";
+import {
+  ERC20MintableBurnable,
+  Bridge,
+  ERC721MintableBurnable,
+  ERC1155MintableBurnable,
+  Bridge__factory,
+} from "@ethers-v6";
 
 describe("Bridge", () => {
   const reverter = new Reverter();
@@ -42,9 +48,12 @@ describe("Bridge", () => {
   before("setup", async () => {
     [OWNER, SECOND, THIRD, FOURTH] = await ethers.getSigners();
 
-    const Bridge = await ethers.getContractFactory("Bridge");
+    const ERC1967Proxy = await ethers.getContractFactory("ERC1967Proxy");
 
-    bridge = await Bridge.deploy();
+    const Bridge = await ethers.getContractFactory("Bridge");
+    const bridgeImplementation = await Bridge.deploy();
+    const bridgeProxy = await ERC1967Proxy.deploy(await bridgeImplementation.getAddress(), "0x");
+    bridge = Bridge__factory.connect(await bridgeProxy.getAddress(), OWNER);
     await bridge.__Bridge_init([OWNER.address], "1");
 
     const ERC20MB = await ethers.getContractFactory("ERC20MintableBurnable");
@@ -91,6 +100,28 @@ describe("Bridge", () => {
       await expect(bridge.connect(SECOND).addHash(txHash, txNonce)).to.be.rejectedWith(
         "Ownable: caller is not the owner",
       );
+    });
+
+    it("should upgrade implementation", async () => {
+      const Bridge = await ethers.getContractFactory("Bridge");
+      const newBridge = await Bridge.deploy();
+
+      await expect(bridge.upgradeTo(await newBridge.getAddress())).to.be.eventually.fulfilled;
+    });
+
+    it("should revert when call from non owner address", async () => {
+      await expect(bridge.connect(SECOND).upgradeTo(await bridge.getAddress())).to.be.rejectedWith(
+        "Ownable: caller is not the owner",
+      );
+    });
+
+    it("should receive ether through proxy", async () => {
+      await expect(
+        OWNER.sendTransaction({
+          to: await bridge.getAddress(),
+          value: wei("1"),
+        }),
+      ).to.be.eventually.fulfilled;
     });
   });
 

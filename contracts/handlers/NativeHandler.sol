@@ -45,6 +45,8 @@ abstract contract NativeHandler is INativeHandler {
         (bool sent_, ) = payable(receiver_).call{value: amount_}("");
 
         require(sent_, "NativeHandler: can't send eth");
+
+        emit WithdrawnNative(amount_, receiver_);
     }
 
     function getNativeSignHash(

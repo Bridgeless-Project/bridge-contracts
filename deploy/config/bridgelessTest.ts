@@ -6,18 +6,38 @@ export const deployConfig: DeployConfig = {
   signersThreshold: 1n,
   wrappedERC20Tokens: [
     {
-      name: "BRIDGE",
-      symbol: "BRIDGE",
+      name: "ETH",
+      symbol: "ETH",
       decimals: 18n,
     },
     {
-      name: "ZANOX",
-      symbol: "ZANOX",
+      name: "BTC",
+      symbol: "BTC",
+      decimals: 8n,
+    },
+    {
+      name: "ZANO",
+      symbol: "ZANO",
       decimals: 12n,
+    },
+    {
+      name: "BNB",
+      symbol: "BNB",
+      decimals: 18n,
+    },
+    {
+      name: "DAI",
+      symbol: "DAI",
+      decimals: 18n,
+    },
+    {
+      name: "USDT",
+      symbol: "USDT",
+      decimals: 6n,
     },
   ],
   swapper: {
-    networkName: "1",
+    networkName: "2607",
     uniswapV2Router: "0x0000000000000000000000000000000000000000",
     operators: [],
   },
