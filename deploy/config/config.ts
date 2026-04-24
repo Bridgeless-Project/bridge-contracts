@@ -11,6 +11,10 @@ export async function getConfig(): Promise<DeployConfig> {
     return validateConfig((await import("./sepolia")).deployConfig);
   }
 
+  if (hre.network.name == "bridgelessTest") {
+    return validateConfig((await import("./bridgelessTest")).deployConfig);
+  }
+
   if (hre.network.name == "bridgelessMainnet") {
     return validateConfig((await import("./bridgelessMainnet")).deployConfig);
   }
@@ -45,10 +49,6 @@ function validateConfig(config: DeployConfig): DeployConfig {
 
   if (config.swapper.networkName == "") {
     throw new Error("Invalid swapper network name");
-  }
-
-  if (config.swapper.uniswapV2Router == "0x0000000000000000000000000000000000000000") {
-    throw new Error("Invalid uniswapV2Router address");
   }
 
   if (config.swapper.operators.length == 0) {
