@@ -77,7 +77,11 @@ contract Swapper is
         SwapParams calldata swapParams_,
         DepositParams calldata destinationDepositParams_
     ) external payable nonReentrant validateSwapParams(swapParams_) {
-        _validateETHSwapParams(swapParams_);
+        require(msg.value == swapParams_.amountIn, "Swapper: msg.value does not match amountIn");
+        require(
+            !swapParams_.isDestinationTokenNative,
+            "Swapper: native-to-native swap not supported"
+        );
 
         _swapAndRoute(swapParams_, destinationDepositParams_);
     }
@@ -88,7 +92,14 @@ contract Swapper is
         DepositParams calldata destinationDepositParams_,
         DepositParams calldata fallbackDepositParams_
     ) external onlyRole(OPERATOR_ROLE) nonReentrant validateSwapParams(swapParams_) {
-        _validateWithdrawParams(withdrawParams_, swapParams_);
+        require(
+            withdrawParams_.token == swapParams_.path[0],
+            "Swapper: withdraw token does not match swap path"
+        );
+        require(
+            withdrawParams_.amount == swapParams_.amountIn,
+            "Swapper: withdraw amount does not match swap amountIn"
+        );
 
         _withdrawFromBridge(withdrawParams_);
 
@@ -120,21 +131,20 @@ contract Swapper is
     ) internal {
         (bool swapSuccess_, uint256 destinationAmount_) = _trySwap(swapParams_);
 
-        if (!swapSuccess_) {
+        if (swapSuccess_) {
+            _routeDestination(
+                destinationAmount_,
+                swapParams_.path[swapParams_.path.length - 1],
+                destinationDepositParams_,
+                swapParams_.isDestinationTokenNative
+            );
+        } else {
             _handleCrossChainDepositFallback(
                 swapParams_.path[0],
                 swapParams_.amountIn,
                 fallbackDepositParams_
             );
-            return;
         }
-
-        _routeDestination(
-            destinationAmount_,
-            swapParams_.path[swapParams_.path.length - 1],
-            destinationDepositParams_,
-            swapParams_.isDestinationTokenNative
-        );
     }
 
     function _swap(SwapParams calldata swapParams_) internal returns (uint256) {
@@ -290,14 +300,6 @@ contract Swapper is
         );
     }
 
-    function _validateETHSwapParams(SwapParams calldata swapParams_) internal {
-        require(msg.value == swapParams_.amountIn, "Swapper: msg.value does not match amountIn");
-        require(
-            !swapParams_.isDestinationTokenNative,
-            "Swapper: native-to-native swap not supported"
-        );
-    }
-
     function _isETHSwap() internal view returns (bool) {
         return msg.value > 0;
     }
@@ -341,19 +343,5 @@ contract Swapper is
 
     function _validateSwapParams(SwapParams calldata swapParams_) internal pure {
         require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
-    }
-
-    function _validateWithdrawParams(
-        WithdrawParams calldata withdrawParams_,
-        SwapParams calldata swapParams_
-    ) internal pure {
-        require(
-            withdrawParams_.token == swapParams_.path[0],
-            "Swapper: withdraw token does not match swap path"
-        );
-        require(
-            withdrawParams_.amount == swapParams_.amountIn,
-            "Swapper: withdraw amount does not match swap amountIn"
-        );
     }
 }
