@@ -72,7 +72,7 @@ contract Swapper is
 
         _swapAndRoute(swapParams_, destinationDepositParams_);
 
-        emit SwappedAndRouted(swapParams_, destinationDepositParams_);
+        emit SwappedAndRouted(msg.sender, swapParams_, destinationDepositParams_);
     }
 
     function swapETHAndRoute(
@@ -87,7 +87,7 @@ contract Swapper is
 
         _swapAndRoute(swapParams_, destinationDepositParams_);
 
-        emit SwappedETHAndRouted(swapParams_, destinationDepositParams_);
+        emit SwappedETHAndRouted(msg.sender, swapParams_, destinationDepositParams_);
     }
 
     function withdrawSwapAndRoute(

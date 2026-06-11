@@ -293,6 +293,7 @@ describe("Swapper", () => {
         await expect(tx)
           .to.emit(swapper, "SwappedAndRouted")
           .withArgs(
+            OWNER.address,
             [
               getDefaultSwapParams(isDestinationTokenNative).amountIn,
               getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
@@ -585,6 +586,7 @@ describe("Swapper", () => {
         await expect(tx)
           .to.emit(swapper, "SwappedETHAndRouted")
           .withArgs(
+            OWNER.address,
             [
               getDefaultSwapParams(isDestinationTokenNative).amountIn,
               getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
