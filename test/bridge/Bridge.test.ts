@@ -63,21 +63,21 @@ describe("Bridge", () => {
 
   describe("access", () => {
     it("should not initialize twice", async () => {
-      await expect(bridge.__Bridge_init([OWNER.address], "1")).to.be.rejectedWith(
+      await expect(bridge.__Bridge_init([OWNER.address], "1")).to.be.revertedWith(
         "Initializable: contract is already initialized",
       );
     });
 
     it("only owner should call these functions", async () => {
-      await expect(erc20.mintTo(OWNER.address, 1)).to.be.rejectedWith("Ownable: caller is not the owner");
-      await expect(erc721.mintTo(OWNER.address, 1, "")).to.be.rejectedWith("Ownable: caller is not the owner");
-      await expect(erc1155.mintTo(OWNER.address, 1, 1, "")).to.be.rejectedWith("Ownable: caller is not the owner");
+      await expect(erc20.mintTo(OWNER.address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(erc721.mintTo(OWNER.address, 1, "")).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(erc1155.mintTo(OWNER.address, 1, 1, "")).to.be.revertedWith("Ownable: caller is not the owner");
 
-      await expect(erc20.burnFrom(OWNER.address, 1)).to.be.rejectedWith("Ownable: caller is not the owner");
-      await expect(erc721.burnFrom(OWNER.address, 1)).to.be.rejectedWith("Ownable: caller is not the owner");
-      await expect(erc1155.burnFrom(OWNER.address, 1, 1)).to.be.rejectedWith("Ownable: caller is not the owner");
+      await expect(erc20.burnFrom(OWNER.address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(erc721.burnFrom(OWNER.address, 1)).to.be.revertedWith("Ownable: caller is not the owner");
+      await expect(erc1155.burnFrom(OWNER.address, 1, 1)).to.be.revertedWith("Ownable: caller is not the owner");
 
-      await expect(bridge.connect(SECOND).addHash(txHash, txNonce)).to.be.rejectedWith(
+      await expect(bridge.connect(SECOND).addHash(txHash, txNonce)).to.be.revertedWith(
         "Ownable: caller is not the owner",
       );
     });
@@ -100,14 +100,24 @@ describe("Bridge", () => {
       const signature = await getSignature(OWNER, signHash);
 
       await bridge.depositERC20(await erc20.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
-      await bridge.withdrawERC20(await erc20.getAddress(), expectedAmount, OWNER, txHash, txNonce, expectedIsWrapped, [
-        signature,
-      ]);
+      const tx = await bridge.withdrawERC20(
+        await erc20.getAddress(),
+        expectedAmount,
+        OWNER,
+        txHash,
+        txNonce,
+        expectedIsWrapped,
+        [signature],
+      );
 
       expect(await erc20.balanceOf(OWNER)).to.equal(baseBalance);
       expect(await erc20.balanceOf(await bridge.getAddress())).to.equal(0);
 
       expect(await bridge.usedHashes(hash)).to.be.true;
+
+      await expect(tx)
+        .to.emit(bridge, "WithdrawnERC20")
+        .withArgs(await erc20.getAddress(), expectedAmount, OWNER.address, expectedIsWrapped);
     });
   });
 
@@ -128,7 +138,7 @@ describe("Bridge", () => {
       const signature = await getSignature(OWNER, signHash);
 
       await bridge.depositERC721(await erc721.getAddress(), baseId, "receiver", "kovan", expectedIsWrapped, referralId);
-      await bridge.withdrawERC721(
+      const tx = await bridge.withdrawERC721(
         await erc721.getAddress(),
         baseId,
         OWNER,
@@ -141,6 +151,10 @@ describe("Bridge", () => {
 
       expect(await erc721.ownerOf(baseId)).to.equal(OWNER.address);
       expect(await erc721.tokenURI(baseId)).to.equal(tokenURI);
+
+      await expect(tx)
+        .to.emit(bridge, "WithdrawnERC721")
+        .withArgs(await erc721.getAddress(), baseId, OWNER.address, tokenURI, expectedIsWrapped);
     });
   });
 
@@ -170,7 +184,7 @@ describe("Bridge", () => {
         expectedIsWrapped,
         referralId,
       );
-      await bridge.withdrawERC1155(
+      const tx = await bridge.withdrawERC1155(
         await erc1155.getAddress(),
         baseId,
         baseBalance,
@@ -184,6 +198,10 @@ describe("Bridge", () => {
 
       expect(await erc1155.balanceOf(OWNER, baseId)).to.equal(baseBalance);
       expect(await bridge.usedHashes(hash)).to.be.true;
+
+      await expect(tx)
+        .to.emit(bridge, "WithdrawnERC1155")
+        .withArgs(await erc1155.getAddress(), baseId, baseBalance, OWNER.address, tokenURI, expectedIsWrapped);
     });
   });
 
@@ -199,10 +217,12 @@ describe("Bridge", () => {
       const signature = await getSignature(OWNER, signHash);
 
       await bridge.depositNative("receiver", "kovan", referralId, { value: baseBalance });
-      await bridge.withdrawNative(baseBalance, OWNER, txHash, txNonce, [signature]);
+      const tx = await bridge.withdrawNative(baseBalance, OWNER, txHash, txNonce, [signature]);
 
       expect(await ethers.provider.getBalance(await bridge.getAddress())).to.equal(0);
       expect(await bridge.usedHashes(hash)).to.be.true;
+
+      await expect(tx).to.emit(bridge, "WithdrawnNative").withArgs(baseBalance, OWNER.address);
     });
   });
 

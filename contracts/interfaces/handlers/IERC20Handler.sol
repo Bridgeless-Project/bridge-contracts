@@ -15,6 +15,11 @@ interface IERC20Handler {
     );
 
     /**
+     * @notice event emits from withdrawERC20 function
+     */
+    event WithdrawnERC20(address token, uint256 amount, address receiver, bool isWrapped);
+
+    /**
      * @notice function for depositing erc20 tokens, emits event DepositedERC20
      * @param token_ the address of deposited token
      * @param amount_ the amount of deposited tokens
