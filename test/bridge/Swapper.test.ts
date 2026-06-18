@@ -667,6 +667,18 @@ describe("Swapper", () => {
             getDefaultFallbackDepositParams(),
           );
 
+          await expect(tx)
+            .to.emit(swapper, "ERC20Withdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              (await getDefaultWithdrawParams()).amount,
+              await swapper.getAddress(),
+              (await getDefaultWithdrawParams()).txHash,
+              (await getDefaultWithdrawParams()).txNonce,
+              (await getDefaultWithdrawParams()).isWrapped,
+              (await getDefaultWithdrawParams()).signatures,
+            );
+
           await expect(tx).to.emit(bridge, "DepositedNative").withArgs(
             getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
             getDefaultDepositParams().receiver,
@@ -764,6 +776,19 @@ describe("Swapper", () => {
             { ...getDefaultDepositParams(), network: network },
             getDefaultFallbackDepositParams(),
           );
+
+          await expect(tx)
+            .to.emit(swapper, "ERC20MerkelizedWithdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              expectedAmount,
+              await swapper.getAddress(),
+              txHash,
+              startNonce,
+              expectedIsWrapped,
+              merkleProof,
+              [signature],
+            );
 
           await expect(tx).to.emit(bridge, "DepositedNative").withArgs(
             getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
@@ -897,6 +922,18 @@ describe("Swapper", () => {
           );
 
           await expect(tx)
+            .to.emit(swapper, "ERC20Withdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              (await getDefaultWithdrawParams()).amount,
+              await swapper.getAddress(),
+              (await getDefaultWithdrawParams()).txHash,
+              (await getDefaultWithdrawParams()).txNonce,
+              (await getDefaultWithdrawParams()).isWrapped,
+              (await getDefaultWithdrawParams()).signatures,
+            );
+
+          await expect(tx)
             .to.emit(bridge, "DepositedERC20")
             .withArgs(
               await erc20_3.getAddress(),
@@ -925,7 +962,7 @@ describe("Swapper", () => {
           );
         });
 
-        it("should call bridge.depositERC20", async () => {
+        it("merkelized withdrawal", async () => {
           const expectedAmount = wei("1");
           const expectedIsWrapped = true;
           const startNonce = 0n;
@@ -997,6 +1034,19 @@ describe("Swapper", () => {
             { ...getDefaultDepositParams(), network: network },
             getDefaultFallbackDepositParams(),
           );
+
+          await expect(tx)
+            .to.emit(swapper, "ERC20MerkelizedWithdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              expectedAmount,
+              await swapper.getAddress(),
+              txHash,
+              startNonce,
+              expectedIsWrapped,
+              merkleProof,
+              [signature],
+            );
 
           await expect(tx)
             .to.emit(bridge, "DepositedERC20")

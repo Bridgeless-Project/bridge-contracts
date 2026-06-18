@@ -283,8 +283,29 @@ contract Swapper is
                 withdrawParams_.merkleProof,
                 withdrawParams_.signatures
             );
+
+            emit ERC20MerkelizedWithdrawn(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.merkleProof,
+                withdrawParams_.signatures
+            );
         } else {
             bridge.withdrawERC20(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.signatures
+            );
+
+            emit ERC20Withdrawn(
                 withdrawParams_.token,
                 withdrawParams_.amount,
                 address(this),
