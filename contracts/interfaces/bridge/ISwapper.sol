@@ -19,6 +19,7 @@ interface ISwapper {
      * @param txHash The hash of the transaction that withdrew the assets
      * @param txNonce The nonce of the transaction that withdrew the assets
      * @param isWrapped Whether the assets are wrapped
+     * @param merkleProof The merkle proof of the withdrawal
      * @param signatures The signatures of the signers that authorized the withdrawal
      */
     struct WithdrawParams {
@@ -27,6 +28,7 @@ interface ISwapper {
         bytes32 txHash;
         uint256 txNonce;
         bool isWrapped;
+        bytes32[] merkleProof;
         bytes[] signatures;
     }
 
