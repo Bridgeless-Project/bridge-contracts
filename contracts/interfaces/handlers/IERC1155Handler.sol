@@ -16,6 +16,18 @@ interface IERC1155Handler {
     );
 
     /**
+     * @notice event emits from withdrawERC1155 function
+     */
+    event WithdrawnERC1155(
+        address token,
+        uint256 tokenId,
+        uint256 amount,
+        address receiver,
+        string tokenURI,
+        bool isWrapped
+    );
+
+    /**
      * @notice function for depositing erc1155 tokens, emits event DepositedERC115
      * @param token_ the address of deposited tokens
      * @param tokenId_ the id of deposited tokens
