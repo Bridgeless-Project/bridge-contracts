@@ -289,6 +289,25 @@ describe("Swapper", () => {
             await swapper.getAddress(),
             getDefaultSwapParams(isDestinationTokenNative).swapDeadline,
           );
+
+        await expect(tx)
+          .to.emit(swapper, "SwappedAndRouted")
+          .withArgs(
+            OWNER.address,
+            [
+              getDefaultSwapParams(isDestinationTokenNative).amountIn,
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultSwapParams(isDestinationTokenNative).swapDeadline,
+              getDefaultSwapParams(isDestinationTokenNative).path,
+              getDefaultSwapParams(isDestinationTokenNative).isDestinationTokenNative,
+            ],
+            [
+              getDefaultDepositParams().receiver,
+              getDefaultDepositParams().network,
+              getDefaultDepositParams().isWrapped,
+              getDefaultDepositParams().referralId,
+            ],
+          );
       });
 
       it("should revert if the swap fails", async () => {
@@ -562,6 +581,25 @@ describe("Swapper", () => {
             getDefaultSwapParams(isDestinationTokenNative).path,
             await swapper.getAddress(),
             getDefaultSwapParams(isDestinationTokenNative).swapDeadline,
+          );
+
+        await expect(tx)
+          .to.emit(swapper, "SwappedETHAndRouted")
+          .withArgs(
+            OWNER.address,
+            [
+              getDefaultSwapParams(isDestinationTokenNative).amountIn,
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultSwapParams(isDestinationTokenNative).swapDeadline,
+              getDefaultSwapParams(isDestinationTokenNative).path,
+              getDefaultSwapParams(isDestinationTokenNative).isDestinationTokenNative,
+            ],
+            [
+              getDefaultDepositParams().receiver,
+              getDefaultDepositParams().network,
+              getDefaultDepositParams().isWrapped,
+              getDefaultDepositParams().referralId,
+            ],
           );
 
         await expect(tx).to.changeEtherBalance(

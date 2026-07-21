@@ -126,6 +126,30 @@ interface ISwapper {
     );
 
     /**
+     * @notice Emitted when swapAndRoute is called
+     * @param sender The address that initiated the swap and route
+     * @param swapParams The swap parameters
+     * @param destinationDepositParams The destination deposit parameters
+     */
+    event SwappedAndRouted(
+        address sender,
+        SwapParams swapParams,
+        DepositParams destinationDepositParams
+    );
+
+    /**
+     * @notice Emitted when swapETHAndRoute is called
+     * @param sender The address that initiated the swap and route
+     * @param swapParams The swap parameters
+     * @param destinationDepositParams The destination deposit parameters
+     */
+    event SwappedETHAndRouted(
+        address sender,
+        SwapParams swapParams,
+        DepositParams destinationDepositParams
+    );
+
+    /**
      * @notice Transfers assets from the msg.sender, swaps them on the Uniswap V2 pool, and routes them to the destination network
      * @param swapParams_ The parameters for swapping assets on the Uniswap V2 pool
      * @param destinationDepositParams_ The parameters for depositing destination assets
