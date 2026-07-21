@@ -19,6 +19,7 @@ interface ISwapper {
      * @param txHash The hash of the transaction that withdrew the assets
      * @param txNonce The nonce of the transaction that withdrew the assets
      * @param isWrapped Whether the assets are wrapped
+     * @param merkleProof The merkle proof of the withdrawal
      * @param signatures The signatures of the signers that authorized the withdrawal
      */
     struct WithdrawParams {
@@ -27,6 +28,7 @@ interface ISwapper {
         bytes32 txHash;
         uint256 txNonce;
         bool isWrapped;
+        bytes32[] merkleProof;
         bytes[] signatures;
     }
 
@@ -59,6 +61,48 @@ interface ISwapper {
         bool isWrapped;
         uint16 referralId;
     }
+
+    /**
+     * @notice Emitted when ERC20 assets are withdrawn from the Bridge using a merkle proof
+     * @param token The token that was withdrawn
+     * @param amount The amount of assets that were withdrawn
+     * @param receiver The receiver of the assets
+     * @param txHash The hash of the transaction that withdrew the assets
+     * @param txNonce The nonce of the transaction that withdrew the assets
+     * @param isWrapped Whether the assets are wrapped
+     * @param merkleProof The merkle proof of the withdrawal
+     * @param signatures The signatures of the signers that authorized the withdrawal
+     */
+    event ERC20MerkelizedWithdrawn(
+        address token,
+        uint256 amount,
+        address receiver,
+        bytes32 txHash,
+        uint256 txNonce,
+        bool isWrapped,
+        bytes32[] merkleProof,
+        bytes[] signatures
+    );
+
+    /**
+     * @notice Emitted when ERC20 assets are withdrawn from the Bridge
+     * @param token The token that was withdrawn
+     * @param amount The amount of assets that were withdrawn
+     * @param receiver The receiver of the assets
+     * @param txHash The hash of the transaction that withdrew the assets
+     * @param txNonce The nonce of the transaction that withdrew the assets
+     * @param isWrapped Whether the assets are wrapped
+     * @param signatures The signatures of the signers that authorized the withdrawal
+     */
+    event ERC20Withdrawn(
+        address token,
+        uint256 amount,
+        address receiver,
+        bytes32 txHash,
+        uint256 txNonce,
+        bool isWrapped,
+        bytes[] signatures
+    );
 
     /**
      * @notice Emitted when ERC20 assets are deposited back into the Bridge after a swap fails

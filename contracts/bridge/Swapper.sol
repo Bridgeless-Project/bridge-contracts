@@ -276,15 +276,49 @@ contract Swapper is
     }
 
     function _withdrawFromBridge(WithdrawParams calldata withdrawParams_) internal {
-        bridge.withdrawERC20(
-            withdrawParams_.token,
-            withdrawParams_.amount,
-            address(this),
-            withdrawParams_.txHash,
-            withdrawParams_.txNonce,
-            withdrawParams_.isWrapped,
-            withdrawParams_.signatures
-        );
+        if (_isMerkelizedWithdrawal(withdrawParams_)) {
+            bridge.withdrawERC20Merkelized(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.merkleProof,
+                withdrawParams_.signatures
+            );
+
+            emit ERC20MerkelizedWithdrawn(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.merkleProof,
+                withdrawParams_.signatures
+            );
+        } else {
+            bridge.withdrawERC20(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.signatures
+            );
+
+            emit ERC20Withdrawn(
+                withdrawParams_.token,
+                withdrawParams_.amount,
+                address(this),
+                withdrawParams_.txHash,
+                withdrawParams_.txNonce,
+                withdrawParams_.isWrapped,
+                withdrawParams_.signatures
+            );
+        }
     }
 
     function _depositToBridge(
@@ -347,5 +381,11 @@ contract Swapper is
 
     function _validateSwapParams(SwapParams calldata swapParams_) internal pure {
         require(swapParams_.path.length > 1, "Swapper: path length is less than 2");
+    }
+
+    function _isMerkelizedWithdrawal(
+        WithdrawParams calldata withdrawParams_
+    ) internal pure returns (bool) {
+        return withdrawParams_.merkleProof.length > 0;
     }
 }

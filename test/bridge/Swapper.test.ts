@@ -60,6 +60,7 @@ describe("Swapper", () => {
       txHash: txHash,
       txNonce: txNonce,
       isWrapped: isWrapped,
+      merkleProof: [],
       signatures: [signature],
     };
   }
@@ -90,6 +91,14 @@ describe("Swapper", () => {
       isWrapped: false,
       referralId: "1",
     };
+  }
+
+  function hashNode(node1: string, node2: string): string {
+    if (BigInt(node1) <= BigInt(node2)) {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node1, node2]);
+    } else {
+      return ethers.solidityPackedKeccak256(["bytes32", "bytes32"], [node2, node1]);
+    }
   }
 
   before("setup", async () => {
@@ -696,6 +705,129 @@ describe("Swapper", () => {
             getDefaultFallbackDepositParams(),
           );
 
+          await expect(tx)
+            .to.emit(swapper, "ERC20Withdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              (await getDefaultWithdrawParams()).amount,
+              await swapper.getAddress(),
+              (await getDefaultWithdrawParams()).txHash,
+              (await getDefaultWithdrawParams()).txNonce,
+              (await getDefaultWithdrawParams()).isWrapped,
+              (await getDefaultWithdrawParams()).signatures,
+            );
+
+          await expect(tx).to.emit(bridge, "DepositedNative").withArgs(
+            getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+            getDefaultDepositParams().receiver,
+            network,
+            0n, // isWrapped == false
+          );
+
+          await expect(tx)
+            .to.emit(swapper, "CrossChainNativeDeposited")
+            .withArgs(
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              network,
+              referralId,
+            );
+
+          await expect(tx).to.changeEtherBalances(
+            [uniswapV2Router, bridge],
+            [
+              -getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+            ],
+          );
+        });
+
+        it("merkelized withdrawal", async () => {
+          const expectedAmount = wei("1");
+          const expectedIsWrapped = true;
+          const startNonce = 0n;
+
+          await bridge.depositERC20(await erc20_1.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
+          await bridge.depositERC20(
+            await erc20_1.getAddress(),
+            expectedAmount * 2n,
+            "receiver",
+            "kovan",
+            true,
+            referralId,
+          );
+          await bridge.depositERC20(
+            await erc20_1.getAddress(),
+            expectedAmount * 3n,
+            "receiver",
+            "kovan",
+            true,
+            referralId,
+          );
+
+          const signHash1 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount,
+            await swapper.getAddress(),
+            txHash,
+            startNonce,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+          const signHash2 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount * 2n,
+            await swapper.getAddress(),
+            txHash,
+            startNonce + 1n,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+          const signHash3 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount * 3n,
+            await swapper.getAddress(),
+            txHash,
+            startNonce + 2n,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+
+          const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+          const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+          const signature = await getSignature(OWNER, level2Hashes[0]);
+
+          let merkleProof = [signHash2, level1Hashes[1]];
+
+          const tx = await swapper.withdrawSwapAndRoute(
+            {
+              token: await erc20_1.getAddress(),
+              amount: expectedAmount,
+              txHash: txHash,
+              txNonce: startNonce,
+              isWrapped: expectedIsWrapped,
+              merkleProof: merkleProof,
+              signatures: [signature],
+            },
+            getDefaultSwapParams(isDestinationTokenNative),
+            { ...getDefaultDepositParams(), network: network },
+            getDefaultFallbackDepositParams(),
+          );
+
+          await expect(tx)
+            .to.emit(swapper, "ERC20MerkelizedWithdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              expectedAmount,
+              await swapper.getAddress(),
+              txHash,
+              startNonce,
+              expectedIsWrapped,
+              merkleProof,
+              [signature],
+            );
+
           await expect(tx).to.emit(bridge, "DepositedNative").withArgs(
             getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
             getDefaultDepositParams().receiver,
@@ -826,6 +958,133 @@ describe("Swapper", () => {
             { ...getDefaultDepositParams(), network: network },
             getDefaultFallbackDepositParams(),
           );
+
+          await expect(tx)
+            .to.emit(swapper, "ERC20Withdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              (await getDefaultWithdrawParams()).amount,
+              await swapper.getAddress(),
+              (await getDefaultWithdrawParams()).txHash,
+              (await getDefaultWithdrawParams()).txNonce,
+              (await getDefaultWithdrawParams()).isWrapped,
+              (await getDefaultWithdrawParams()).signatures,
+            );
+
+          await expect(tx)
+            .to.emit(bridge, "DepositedERC20")
+            .withArgs(
+              await erc20_3.getAddress(),
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              network,
+              getDefaultDepositParams().isWrapped,
+              referralId,
+            );
+
+          await expect(tx)
+            .to.emit(swapper, "CrossChainERC20Deposited")
+            .withArgs(
+              await erc20_3.getAddress(),
+              getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+              getDefaultDepositParams().receiver,
+              network,
+              getDefaultDepositParams().isWrapped,
+              referralId,
+            );
+
+          await expect(tx).to.changeTokenBalance(
+            erc20_3,
+            bridge,
+            getDefaultSwapParams(isDestinationTokenNative).minDestinationAmount,
+          );
+        });
+
+        it("merkelized withdrawal", async () => {
+          const expectedAmount = wei("1");
+          const expectedIsWrapped = true;
+          const startNonce = 0n;
+
+          await bridge.depositERC20(await erc20_1.getAddress(), expectedAmount, "receiver", "kovan", true, referralId);
+          await bridge.depositERC20(
+            await erc20_1.getAddress(),
+            expectedAmount * 2n,
+            "receiver",
+            "kovan",
+            true,
+            referralId,
+          );
+          await bridge.depositERC20(
+            await erc20_1.getAddress(),
+            expectedAmount * 3n,
+            "receiver",
+            "kovan",
+            true,
+            referralId,
+          );
+
+          const signHash1 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount,
+            await swapper.getAddress(),
+            txHash,
+            startNonce,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+          const signHash2 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount * 2n,
+            await swapper.getAddress(),
+            txHash,
+            startNonce + 1n,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+          const signHash3 = await bridge.getERC20SignHash(
+            await erc20_1.getAddress(),
+            expectedAmount * 3n,
+            await swapper.getAddress(),
+            txHash,
+            startNonce + 2n,
+            (await ethers.provider.getNetwork()).chainId,
+            expectedIsWrapped,
+          );
+
+          const level1Hashes = [hashNode(signHash1, signHash2), hashNode(signHash3, signHash3)];
+          const level2Hashes = [hashNode(level1Hashes[0], level1Hashes[1])];
+
+          const signature = await getSignature(OWNER, level2Hashes[0]);
+
+          let merkleProof = [signHash2, level1Hashes[1]];
+
+          const tx = await swapper.withdrawSwapAndRoute(
+            {
+              token: await erc20_1.getAddress(),
+              amount: expectedAmount,
+              txHash: txHash,
+              txNonce: startNonce,
+              isWrapped: expectedIsWrapped,
+              merkleProof: merkleProof,
+              signatures: [signature],
+            },
+            getDefaultSwapParams(isDestinationTokenNative),
+            { ...getDefaultDepositParams(), network: network },
+            getDefaultFallbackDepositParams(),
+          );
+
+          await expect(tx)
+            .to.emit(swapper, "ERC20MerkelizedWithdrawn")
+            .withArgs(
+              await erc20_1.getAddress(),
+              expectedAmount,
+              await swapper.getAddress(),
+              txHash,
+              startNonce,
+              expectedIsWrapped,
+              merkleProof,
+              [signature],
+            );
 
           await expect(tx)
             .to.emit(bridge, "DepositedERC20")
