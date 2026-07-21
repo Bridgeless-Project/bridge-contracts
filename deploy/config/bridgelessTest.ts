@@ -2,7 +2,7 @@ import { DeployConfig } from "./types";
 
 export const deployConfig: DeployConfig = {
   bridgeOwner: "0x69A18eb6829DC6c3896e46866A2e07027bA1F7cE",
-  bridgeSigners: ["0xE5B686fdE8574f158bEe618E370B652C6C33f8c8"],
+  bridgeSigners: ["0xB43B91E063BeB208f3bAdf884938f661B5759953"],
   signersThreshold: 1n,
   wrappedERC20Tokens: [
     {
@@ -38,7 +38,8 @@ export const deployConfig: DeployConfig = {
   ],
   swapper: {
     networkName: "2607",
-    uniswapV2Router: "0x0000000000000000000000000000000000000000",
+    bridgeAddress: "",
+    uniswapV2Router: "",
     operators: [],
   },
 };

@@ -11,7 +11,7 @@ export = async (deployer: Deployer) => {
   if (config.swapper.bridgeAddress) {
     bridgeAddress = config.swapper.bridgeAddress;
   } else {
-    const bridge = await deployer.deployed(Bridge__factory, "Bridge proxy");
+    const bridge = await deployer.deployed(Bridge__factory, "contracts/bridge/Bridge.sol:Bridge proxy");
 
     bridgeAddress = await bridge.getAddress();
   }
@@ -23,7 +23,7 @@ export = async (deployer: Deployer) => {
     config.swapper.operators,
   ]);
 
-  const swapper = await deployer.deployERC1967Proxy(Swapper__factory, swapperInitData, { name: "Swapper" });
+  const swapper = await deployer.deployERC1967Proxy(Swapper__factory, swapperInitData);
 
   Reporter.reportContracts(["Swapper", await swapper.getAddress()]);
 };

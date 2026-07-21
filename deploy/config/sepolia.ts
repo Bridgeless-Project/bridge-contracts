@@ -18,6 +18,7 @@ export const deployConfig: DeployConfig = {
   ],
   swapper: {
     networkName: "11155111",
+    bridgeAddress: "",
     uniswapV2Router: "0x0000000000000000000000000000000000000000",
     operators: [],
   },

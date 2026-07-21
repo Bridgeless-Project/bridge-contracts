@@ -12,7 +12,7 @@ export = async (deployer: Deployer) => {
     config.signersThreshold,
   ]);
 
-  const bridge = await deployer.deployERC1967Proxy(Bridge__factory, bridgeInitData, { name: "Bridge" });
+  const bridge = await deployer.deployERC1967Proxy(Bridge__factory, bridgeInitData);
 
   await bridge.transferOwnership(config.bridgeOwner);
 
